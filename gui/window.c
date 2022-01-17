@@ -40,9 +40,9 @@ static void window_private_free( WindowPrivate *priv );
 static WindowPrivate* window_get_private( GtkWindow *window );
 
 static GtkDrawingArea* drawing_area_new( GtkWindow *window );
-static gboolean on_drawing_area_draw( GtkWidget *widget, cairo_t *cr, gpointer user_data );
+static void drawing_area_draw_func( GtkDrawingArea *drawing_area, cairo_t *cr, int width, int height, gpointer user_data );
 static void on_drawing_area_realize( GtkWidget *widget, gpointer user_data );
-static void on_drawing_area_size_allocate( GtkWidget *widget, GdkRectangle *allocation, gpointer user_data );
+static void on_drawing_area_resize( GtkDrawingArea *drawing_area, gint height, gint width, gpointer user_data );
 
 static G_DEFINE_QUARK( spin-figure-type, spin_figure_type )
 static GtkSpinButton* spin_new( GtkWindow *window, gint figure_type );
@@ -55,7 +55,7 @@ static gboolean timer_timeout_callback( gpointer user_data );
 static GtkButton* reallocate_button_new( GtkWindow *window );
 static void on_reallocate_button_clicked( GtkButton *reallocate_button, gpointer user_data );
 
-static gboolean on_window_key_press_event( GtkWindow *window, GdkEvent *event, gpointer user_data );
+static gboolean on_key_pressed( GtkEventControllerKey *self, guint keyval, guint keycode, GdkModifierType state, gpointer user_data );
 
 
 /*
@@ -98,17 +98,23 @@ drawing_area_new(
 	g_return_val_if_fail( GTK_IS_WINDOW( window ), NULL );
 
 	drawing_area = GTK_DRAWING_AREA( gtk_drawing_area_new() );
-	g_signal_connect( GTK_WIDGET( drawing_area ), "draw", G_CALLBACK( on_drawing_area_draw ), window );
-	g_signal_connect( GTK_WIDGET( drawing_area ), "realize", G_CALLBACK( on_drawing_area_realize ), window );
-	g_signal_connect( GTK_WIDGET( drawing_area ), "size-allocate", G_CALLBACK( on_drawing_area_size_allocate ), window );
+	gtk_widget_set_hexpand( GTK_WIDGET( drawing_area ), TRUE );
+	gtk_widget_set_vexpand( GTK_WIDGET( drawing_area ), TRUE );
+	gtk_widget_set_halign( GTK_WIDGET( drawing_area ), GTK_ALIGN_FILL );
+	gtk_widget_set_valign( GTK_WIDGET( drawing_area ), GTK_ALIGN_FILL );
+	gtk_drawing_area_set_draw_func( drawing_area, drawing_area_draw_func, window, NULL );
+	g_signal_connect( G_OBJECT( drawing_area ), "realize", G_CALLBACK( on_drawing_area_realize ), window );
+	g_signal_connect( G_OBJECT( drawing_area ), "resize", G_CALLBACK( on_drawing_area_resize ), window );
 
 	return drawing_area;
 }
 
-static gboolean
-on_drawing_area_draw(
-	GtkWidget *widget,
+static void
+drawing_area_draw_func(
+	GtkDrawingArea *drawing_area,
 	cairo_t *cr,
+	gint width,
+	gint height,
 	gpointer user_data )
 {
 	GtkWindow *window = GTK_WINDOW( user_data );
@@ -123,8 +129,6 @@ on_drawing_area_draw(
 
 	/* draw all figures */
 	moving_figures_draw( priv->moving_figures, cr );
-
-	return FALSE;
 }
 
 static void
@@ -145,15 +149,19 @@ on_drawing_area_realize(
 }
 
 static void
-on_drawing_area_size_allocate(
-	GtkWidget *widget,
-	GdkRectangle *allocation,
+on_drawing_area_resize(
+	GtkDrawingArea *drawing_area,
+	gint height,
+	gint width,
 	gpointer user_data )
 {
 	GtkWindow *window = GTK_WINDOW( user_data );
 	WindowPrivate *priv = window_get_private( window );
 
-	priv->rect = *allocation;
+	priv->rect.x = 0;
+	priv->rect.y = 0;
+	priv->rect.width = width;
+	priv->rect.height = height;
 	moving_figures_set_rectangle( priv->moving_figures, &( priv->rect ) );
 }
 
@@ -214,7 +222,6 @@ startstop_button_new(
 	g_return_val_if_fail( GTK_IS_WINDOW( window ), NULL );
 
 	startstop_button = GTK_BUTTON( gtk_button_new_with_label( "Start" ) );
-	gtk_widget_set_size_request( GTK_WIDGET( startstop_button ), 150, -1 );
 	g_signal_connect( GTK_WIDGET( startstop_button ), "clicked", G_CALLBACK( on_startstop_button_clicked ), window );
 
 	return startstop_button;
@@ -271,7 +278,6 @@ reallocate_button_new(
 	g_return_val_if_fail( GTK_IS_WINDOW( window ), NULL );
 
 	reallocate_button = GTK_BUTTON( gtk_button_new_with_label( "Reallocate" ) );
-	gtk_widget_set_size_request( GTK_WIDGET( reallocate_button ), 150, -1 );
 	g_signal_connect( GTK_WIDGET( reallocate_button ), "clicked", G_CALLBACK( on_reallocate_button_clicked ), window );
 
 	return reallocate_button;
@@ -295,16 +301,18 @@ on_reallocate_button_clicked(
 	window
 */
 static gboolean
-on_window_key_press_event(
-	GtkWindow *window,
-	GdkEvent *event,
+on_key_pressed(
+	GtkEventControllerKey *self,
+	guint keyval,
+	guint keycode,
+	GdkModifierType state,
 	gpointer user_data )
 {
-	GdkEventKey *eventkey = (GdkEventKey*)event;
+	GtkWindow *window = GTK_WINDOW( user_data );
 
-	if( ( eventkey->state & GDK_CONTROL_MASK ) && eventkey->keyval == GDK_KEY_q )
+	if( keyval == GDK_KEY_q && ( state & GDK_CONTROL_MASK ) )
 	{
-		gtk_widget_destroy( GTK_WIDGET( window ) );
+		gtk_window_destroy( window );
 		return GDK_EVENT_STOP;
 	}
 
@@ -327,13 +335,16 @@ window_new(
 	GtkButton *startstop_button, *reallocate_button;
 	MovingFigures *moving_figures;
 	WindowPrivate *priv;
+	GtkEventControllerKey *key;
 
 	/* create window */
-	window = GTK_WINDOW( gtk_window_new( GTK_WINDOW_TOPLEVEL ) );
+	window = GTK_WINDOW( gtk_application_window_new( app ) );
+	gtk_window_set_default_size( window, 700, 700 );
+	gtk_window_set_title( window, "Moving figures" );
 	gtk_window_set_resizable( window, TRUE );
-	gtk_window_set_position( window, GTK_WIN_POS_CENTER );
-	gtk_widget_set_size_request( GTK_WIDGET( window ), 900, 800 );
-	g_signal_connect( GTK_WIDGET( window ), "key-press-event", G_CALLBACK( on_window_key_press_event ), NULL );
+	key = GTK_EVENT_CONTROLLER_KEY( gtk_event_controller_key_new() );
+	gtk_widget_add_controller( GTK_WIDGET( window ), GTK_EVENT_CONTROLLER( key ) );
+	g_signal_connect( G_OBJECT( key ), "key-pressed", G_CALLBACK( on_key_pressed ), window );
 
 	/* create widgets */
 	hbox = GTK_BOX( gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 1 ) );
@@ -351,19 +362,19 @@ window_new(
 	reallocate_button = reallocate_button_new( window );
 
 	/* layout widgets */
-	gtk_container_add( GTK_CONTAINER( point_frame ), GTK_WIDGET( point_spin ) );
-	gtk_container_add( GTK_CONTAINER( circle_frame ), GTK_WIDGET( circle_spin ) );
-	gtk_container_add( GTK_CONTAINER( polygon_frame ), GTK_WIDGET( polygon_spin ) );
-	gtk_container_add( GTK_CONTAINER( star_frame ), GTK_WIDGET( star_spin ) );
-	gtk_box_pack_start( vbox, GTK_WIDGET( point_frame ), FALSE, FALSE, 5 );
-	gtk_box_pack_start( vbox, GTK_WIDGET( circle_frame ), FALSE, FALSE, 5 );
-	gtk_box_pack_start( vbox, GTK_WIDGET( polygon_frame ), FALSE, FALSE, 5 );
-	gtk_box_pack_start( vbox, GTK_WIDGET( star_frame ), FALSE, FALSE, 5 );
-	gtk_box_pack_start( vbox, GTK_WIDGET( startstop_button ), FALSE, FALSE, 0 );
-	gtk_box_pack_start( vbox, GTK_WIDGET( reallocate_button ), FALSE, FALSE, 0 );
-	gtk_box_pack_start( hbox, GTK_WIDGET( drawing_area ), TRUE, TRUE, 0 );
-	gtk_box_pack_start( hbox, GTK_WIDGET( vbox ), FALSE, FALSE, 5 );
-	gtk_container_add( GTK_CONTAINER( window ), GTK_WIDGET( hbox ) );
+	gtk_frame_set_child( point_frame, GTK_WIDGET( point_spin ) );
+	gtk_frame_set_child( circle_frame, GTK_WIDGET( circle_spin ) );
+	gtk_frame_set_child( polygon_frame, GTK_WIDGET( polygon_spin ) );
+	gtk_frame_set_child( star_frame, GTK_WIDGET( star_spin ) );
+	gtk_box_append( vbox, GTK_WIDGET( point_frame ) );
+	gtk_box_append( vbox, GTK_WIDGET( circle_frame ) );
+	gtk_box_append( vbox, GTK_WIDGET( polygon_frame ) );
+	gtk_box_append( vbox, GTK_WIDGET( star_frame ) );
+	gtk_box_append( vbox, GTK_WIDGET( startstop_button ) );
+	gtk_box_append( vbox, GTK_WIDGET( reallocate_button ) );
+	gtk_box_append( hbox, GTK_WIDGET( drawing_area ) );
+	gtk_box_append( hbox, GTK_WIDGET( vbox ) );
+	gtk_window_set_child( window, GTK_WIDGET( hbox ) );
 
 	/* collect private data */
 	moving_figures = moving_figures_new();
@@ -373,7 +384,11 @@ window_new(
 	moving_figures_append( moving_figures, MOVING_FIGURE_TYPE_STAR, gtk_spin_button_get_value_as_int( star_spin ) );
 	priv = window_private_new();
 	priv->drawing_area = drawing_area;
-	priv->rect = (GdkRectangle){ 0, 0, 1, 1 };
+	priv->rect = (GdkRectangle){
+		.x = 0,
+		.y = 0,
+		.width = 1,
+		.height = 1 };
 	priv->moving_figures = moving_figures;
 	priv->button_state = BUTTON_STATE_START;
 	priv->timer = 0;

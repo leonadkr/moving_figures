@@ -109,7 +109,11 @@ moving_figures_new(
 		mf->fig[fig_type] = NULL;
 		mf->fignum[fig_type] = 0;
 	}
-	mf->rect = (GdkRectangle){ 0, 0, 1, 1 };
+	mf->rect = (GdkRectangle){
+		.x = 0,
+		.y = 0,
+		.width = 1,
+		.height = 1 };
 
 	return mf;
 }

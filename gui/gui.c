@@ -11,8 +11,7 @@ on_app_activate(
 
 	g_return_if_fail( GTK_IS_WINDOW( window ) );
 
-	gtk_application_add_window( app, window );
-	gtk_widget_show_all( GTK_WIDGET( window ) );
+	gtk_widget_show( GTK_WIDGET( window ) );
 }
 
 int
@@ -23,15 +22,14 @@ gui_start(
 	GtkApplication *app;
 	int status = EXIT_FAILURE;
 
-	if( g_application_id_is_valid( APP_ID ) )
+	g_return_val_if_fail( g_application_id_is_valid( APP_ID ), EXIT_FAILURE );
+
+	app = gtk_application_new( APP_ID, G_APPLICATION_FLAGS_NONE );
+	if( app != NULL )
 	{
-		app = gtk_application_new( APP_ID, G_APPLICATION_FLAGS_NONE );
-		if( app != NULL )
-		{
-			g_signal_connect( G_OBJECT( app ), "activate", G_CALLBACK( on_app_activate ), NULL );
-			status = g_application_run( G_APPLICATION( app ), argc, argv );
-			g_object_unref( app );
-		}
+		g_signal_connect( G_OBJECT( app ), "activate", G_CALLBACK( on_app_activate ), NULL );
+		status = g_application_run( G_APPLICATION( app ), argc, argv );
+		g_object_unref( app );
 	}
 
 	return status;
