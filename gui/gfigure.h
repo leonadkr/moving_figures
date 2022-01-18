@@ -31,6 +31,7 @@ typedef struct _GFigureClass GFigureClass;
 GFigure* g_figure_new( void );
 void g_figure_move( GFigure*, GdkRectangle* );
 void g_figure_draw( GFigure*, cairo_t* );
+gboolean g_figure_is_inside_rect( GFigure*, GdkRectangle* );
 
 G_END_DECLS
 

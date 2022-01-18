@@ -213,3 +213,23 @@ g_figure_draw(
 	klass->draw( self, cr );
 }
 
+gboolean
+g_figure_is_inside_rect(
+	GFigure *self,
+	GdkRectangle *rect )
+{
+	GFigurePrivate *priv;
+
+	g_return_val_if_fail( G_IS_FIGURE( self ), FALSE );
+
+	priv = g_figure_get_instance_private( self );
+
+	if(	rect->x <= priv->x &&
+			priv->x <= rect->x + rect->width &&
+			rect->y <= priv->y &&
+			priv->y <= rect->y + rect->height )
+		return TRUE;
+
+	return FALSE;
+}
+

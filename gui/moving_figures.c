@@ -169,7 +169,8 @@ moving_figures_move(
 
 	for( fig_type = 0; fig_type < N_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = mf->fig[fig_type]; l != NULL; l = l->next )
-			g_figure_move( G_FIGURE( l->data ), &( mf->rect ) );
+			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( mf->rect ) ) )
+				g_figure_move( G_FIGURE( l->data ), &( mf->rect ) );
 }
 
 void
@@ -184,7 +185,8 @@ moving_figures_draw(
 
 	for( fig_type = 0; fig_type < N_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = mf->fig[fig_type]; l != NULL; l = l->next )
-			g_figure_draw( G_FIGURE( l->data ), cr );
+			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( mf->rect ) ) )
+				g_figure_draw( G_FIGURE( l->data ), cr );
 }
 
 void
