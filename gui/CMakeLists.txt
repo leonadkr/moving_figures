@@ -13,7 +13,7 @@ add_library( figures
 	gcircle.c
 	gpolygon.c
 	gstar.c
-	moving_figures.c )
+	gtkmovingfiguresarea.c )
 
 target_include_directories( figures
 	PRIVATE

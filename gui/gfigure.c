@@ -224,12 +224,6 @@ g_figure_is_inside_rect(
 
 	priv = g_figure_get_instance_private( self );
 
-	if(	rect->x <= priv->x &&
-			priv->x <= rect->x + rect->width &&
-			rect->y <= priv->y &&
-			priv->y <= rect->y + rect->height )
-		return TRUE;
-
-	return FALSE;
+	return gdk_rectangle_contains_point( rect, priv->x, priv->y );
 }
 

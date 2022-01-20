@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <gtk/gtk.h>
 #include "fps.h"
-#include "moving_figures.h"
+#include "gtkmovingfiguresarea.h"
 
 
 /*
@@ -22,9 +22,8 @@ typedef enum _ButtonState ButtonState;
 */
 struct _WindowPrivate
 {
-	GtkDrawingArea *drawing_area;
-	GdkRectangle rect;
-	MovingFigures *moving_figures;
+	GtkMovingFiguresArea *moving_figures_area;
+	GtkSpinButton *point_spin, *circle_spin, *polygon_spin, *star_spin;
 	ButtonState button_state;
 	gint timer;
 };
@@ -39,10 +38,7 @@ static WindowPrivate* window_private_new( void );
 static void window_private_free( WindowPrivate *priv );
 static WindowPrivate* window_get_private( GtkWindow *window );
 
-static GtkDrawingArea* drawing_area_new( GtkWindow *window );
-static void drawing_area_draw_func( GtkDrawingArea *drawing_area, cairo_t *cr, int width, int height, gpointer user_data );
-static void on_drawing_area_realize( GtkWidget *widget, gpointer user_data );
-static void on_drawing_area_resize( GtkDrawingArea *drawing_area, gint height, gint width, gpointer user_data );
+static GtkMovingFiguresArea* moving_figures_area_new( GtkWindow *window );
 
 static G_DEFINE_QUARK( spin-figure-type, spin_figure_type )
 static GtkSpinButton* spin_new( GtkWindow *window, gint figure_type );
@@ -72,7 +68,6 @@ static void
 window_private_free(
 	WindowPrivate *priv )
 {
-	moving_figures_free( priv->moving_figures );
 	g_free( priv );
 }
 
@@ -87,82 +82,19 @@ window_get_private(
 
 
 /*
-	drawing area
+	moving figures area
 */
-static GtkDrawingArea*
-drawing_area_new(
+static GtkMovingFiguresArea*
+moving_figures_area_new(
 	GtkWindow *window )
 {
-	GtkDrawingArea *drawing_area;
+	GtkMovingFiguresArea *moving_figures_area;
 
-	g_return_val_if_fail( GTK_IS_WINDOW( window ), NULL );
+	moving_figures_area = gtk_moving_figures_area_new( 100, 100 );
+	gtk_widget_set_vexpand( GTK_WIDGET( moving_figures_area ), TRUE );
+	gtk_widget_set_hexpand( GTK_WIDGET( moving_figures_area ), TRUE );
 
-	drawing_area = GTK_DRAWING_AREA( gtk_drawing_area_new() );
-	gtk_widget_set_hexpand( GTK_WIDGET( drawing_area ), TRUE );
-	gtk_widget_set_vexpand( GTK_WIDGET( drawing_area ), TRUE );
-	gtk_widget_set_halign( GTK_WIDGET( drawing_area ), GTK_ALIGN_FILL );
-	gtk_widget_set_valign( GTK_WIDGET( drawing_area ), GTK_ALIGN_FILL );
-	gtk_drawing_area_set_draw_func( drawing_area, drawing_area_draw_func, window, NULL );
-	g_signal_connect( G_OBJECT( drawing_area ), "realize", G_CALLBACK( on_drawing_area_realize ), window );
-	g_signal_connect( G_OBJECT( drawing_area ), "resize", G_CALLBACK( on_drawing_area_resize ), window );
-
-	return drawing_area;
-}
-
-static void
-drawing_area_draw_func(
-	GtkDrawingArea *drawing_area,
-	cairo_t *cr,
-	gint width,
-	gint height,
-	gpointer user_data )
-{
-	GtkWindow *window = GTK_WINDOW( user_data );
-	WindowPrivate *priv = window_get_private( window );
-	GdkRGBA color;
-
-	/* make white canvas */
-	color = (GdkRGBA){ 1.0, 1.0, 1.0, 1.0 };
-	gdk_cairo_set_source_rgba( cr, &color );
-	gdk_cairo_rectangle( cr, &( priv->rect ) );
-	cairo_fill( cr );
-
-	/* draw all figures */
-	moving_figures_draw( priv->moving_figures, cr );
-}
-
-static void
-on_drawing_area_realize(
-	GtkWidget *widget,
-	gpointer user_data )
-{
-	GtkWindow *window = GTK_WINDOW( user_data );
-	WindowPrivate *priv = window_get_private( window );
-
-	priv->rect.x = 0;
-	priv->rect.y = 0;
-	priv->rect.width = gtk_widget_get_allocated_width( widget );
-	priv->rect.height = gtk_widget_get_allocated_height( widget );
-
-	moving_figures_set_rectangle( priv->moving_figures, &( priv->rect ) );
-	moving_figures_reallocate( priv->moving_figures );
-}
-
-static void
-on_drawing_area_resize(
-	GtkDrawingArea *drawing_area,
-	gint height,
-	gint width,
-	gpointer user_data )
-{
-	GtkWindow *window = GTK_WINDOW( user_data );
-	WindowPrivate *priv = window_get_private( window );
-
-	priv->rect.x = 0;
-	priv->rect.y = 0;
-	priv->rect.width = width;
-	priv->rect.height = height;
-	moving_figures_set_rectangle( priv->moving_figures, &( priv->rect ) );
+	return moving_figures_area;
 }
 
 
@@ -203,10 +135,10 @@ on_spin_value_changed(
 
 	num = gtk_spin_button_get_value_as_int( spin );
 	spin_figure_type = g_object_get_qdata( G_OBJECT( spin ), spin_figure_type_quark() );
-	moving_figures_set_number( priv->moving_figures, *spin_figure_type, num );
+	gtk_moving_figures_area_set_number( priv->moving_figures_area, *spin_figure_type, num );
 
 	if( priv->button_state == BUTTON_STATE_START )
-		gtk_widget_queue_draw( GTK_WIDGET( priv->drawing_area ) );
+		gtk_widget_queue_draw( GTK_WIDGET( priv->moving_figures_area ) );
 }
 
 
@@ -259,8 +191,8 @@ timer_timeout_callback(
 	GtkWindow *window = GTK_WINDOW( user_data );
 	WindowPrivate *priv = window_get_private( window );
 
-	moving_figures_move( priv->moving_figures );
-	gtk_widget_queue_draw( GTK_WIDGET( priv->drawing_area ) );
+	gtk_moving_figures_area_move( priv->moving_figures_area );
+	gtk_widget_queue_draw( GTK_WIDGET( priv->moving_figures_area ) );
 
 	return TRUE;
 }
@@ -291,9 +223,9 @@ on_reallocate_button_clicked(
 	GtkWindow *window = GTK_WINDOW( user_data );
 	WindowPrivate *priv = window_get_private( window );
 
-	moving_figures_reallocate( priv->moving_figures );
+	gtk_moving_figures_area_reallocate( priv->moving_figures_area );
 	if( priv->button_state == BUTTON_STATE_START )
-		gtk_widget_queue_draw( GTK_WIDGET( priv->drawing_area ) );
+		gtk_widget_queue_draw( GTK_WIDGET( priv->moving_figures_area ) );
 }
 
 
@@ -328,14 +260,13 @@ window_new(
 	GtkApplication *app )
 {
 	GtkWindow *window;
-	GtkDrawingArea *drawing_area;
+	GtkEventControllerKey *key;
 	GtkBox *hbox, *vbox;
 	GtkFrame *point_frame, *circle_frame, *polygon_frame, *star_frame;
 	GtkSpinButton *point_spin, *circle_spin, *polygon_spin, *star_spin;
 	GtkButton *startstop_button, *reallocate_button;
-	MovingFigures *moving_figures;
+	GtkMovingFiguresArea *moving_figures_area;
 	WindowPrivate *priv;
-	GtkEventControllerKey *key;
 
 	/* create window */
 	window = GTK_WINDOW( gtk_application_window_new( app ) );
@@ -353,11 +284,15 @@ window_new(
 	circle_frame = GTK_FRAME( gtk_frame_new( "Circle" ) );
 	polygon_frame = GTK_FRAME( gtk_frame_new( "Polygon" ) );
 	star_frame = GTK_FRAME( gtk_frame_new( "Star" ) );
-	drawing_area = drawing_area_new( window );
-	point_spin = spin_new( window, MOVING_FIGURE_TYPE_POINT );
-	circle_spin = spin_new( window, MOVING_FIGURE_TYPE_CIRCLE );
-	polygon_spin = spin_new( window, MOVING_FIGURE_TYPE_POLYGON );
-	star_spin = spin_new( window, MOVING_FIGURE_TYPE_STAR );
+	point_spin = spin_new( window, GTK_MOVING_FIGURE_TYPE_POINT );
+	circle_spin = spin_new( window, GTK_MOVING_FIGURE_TYPE_CIRCLE );
+	polygon_spin = spin_new( window, GTK_MOVING_FIGURE_TYPE_POLYGON );
+	star_spin = spin_new( window, GTK_MOVING_FIGURE_TYPE_STAR );
+	moving_figures_area = moving_figures_area_new( window );
+	gtk_moving_figures_area_append( moving_figures_area, GTK_MOVING_FIGURE_TYPE_POINT, gtk_spin_button_get_value_as_int( point_spin ) );
+	gtk_moving_figures_area_append( moving_figures_area, GTK_MOVING_FIGURE_TYPE_CIRCLE, gtk_spin_button_get_value_as_int( circle_spin ) );
+	gtk_moving_figures_area_append( moving_figures_area, GTK_MOVING_FIGURE_TYPE_POLYGON, gtk_spin_button_get_value_as_int( polygon_spin ) );
+	gtk_moving_figures_area_append( moving_figures_area, GTK_MOVING_FIGURE_TYPE_STAR, gtk_spin_button_get_value_as_int( star_spin ) );
 	startstop_button = startstop_button_new( window );
 	reallocate_button = reallocate_button_new( window );
 
@@ -372,24 +307,17 @@ window_new(
 	gtk_box_append( vbox, GTK_WIDGET( star_frame ) );
 	gtk_box_append( vbox, GTK_WIDGET( startstop_button ) );
 	gtk_box_append( vbox, GTK_WIDGET( reallocate_button ) );
-	gtk_box_append( hbox, GTK_WIDGET( drawing_area ) );
+	gtk_box_append( hbox, GTK_WIDGET( moving_figures_area ) );
 	gtk_box_append( hbox, GTK_WIDGET( vbox ) );
 	gtk_window_set_child( window, GTK_WIDGET( hbox ) );
 
 	/* collect private data */
-	moving_figures = moving_figures_new();
-	moving_figures_append( moving_figures, MOVING_FIGURE_TYPE_POINT, gtk_spin_button_get_value_as_int( point_spin ) );
-	moving_figures_append( moving_figures, MOVING_FIGURE_TYPE_CIRCLE, gtk_spin_button_get_value_as_int( circle_spin ) );
-	moving_figures_append( moving_figures, MOVING_FIGURE_TYPE_POLYGON, gtk_spin_button_get_value_as_int( polygon_spin ) );
-	moving_figures_append( moving_figures, MOVING_FIGURE_TYPE_STAR, gtk_spin_button_get_value_as_int( star_spin ) );
 	priv = window_private_new();
-	priv->drawing_area = drawing_area;
-	priv->rect = (GdkRectangle){
-		.x = 0,
-		.y = 0,
-		.width = 1,
-		.height = 1 };
-	priv->moving_figures = moving_figures;
+	priv->moving_figures_area = moving_figures_area;
+	priv->point_spin = point_spin;
+	priv->circle_spin = circle_spin;
+	priv->polygon_spin = polygon_spin;
+	priv->star_spin = star_spin;
 	priv->button_state = BUTTON_STATE_START;
 	priv->timer = 0;
 	g_object_set_qdata_full( G_OBJECT( window ), window_private_quark(), priv, (GDestroyNotify)window_private_free );
