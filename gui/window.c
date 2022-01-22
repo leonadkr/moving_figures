@@ -68,6 +68,8 @@ static void
 window_private_free(
 	WindowPrivate *priv )
 {
+	if( priv->timer )
+		g_source_remove( priv->timer );
 	g_free( priv );
 }
 
@@ -178,6 +180,7 @@ on_startstop_button_clicked(
 			gtk_button_set_label( startstop_button, "Start" );
 			priv->button_state = BUTTON_STATE_START;
 			g_source_remove( priv->timer );
+			priv->timer = 0;
 			break;
 		default:
 			break;

@@ -9,14 +9,17 @@
 #include "gpolygon.h"
 #include "gstar.h"
 
-struct _GtkMovingFiguresAreaPrivate
+
+struct _GtkMovingFiguresArea
 {
+	GtkWidget parent_instance;
+
 	gboolean is_realized;
 	guint minimum_width, minimum_height;
 	GList *fig[N_GTK_MOVING_FIGURE_TYPE];
 	gint fignum[N_GTK_MOVING_FIGURE_TYPE];
 };
-typedef struct _GtkMovingFiguresAreaPrivate GtkMovingFiguresAreaPrivate;
+typedef struct _GtkMovingFiguresArea GtkMovingFiguresArea;
 
 enum _GtkMovingFiguresAreaPropertyID
 {
@@ -40,27 +43,26 @@ static GtkSizeRequestMode gtk_moving_figures_area_real_get_request_mode( GtkWidg
 static void gtk_moving_figures_area_real_measure( GtkWidget *widget, GtkOrientation orientation, gint for_size, gint *minimum, gint *natural, gint *minimum_baseline, gint *natural_baseline );
 static void gtk_moving_figures_area_real_shapshot( GtkWidget *widget, GtkSnapshot *snapshot );
 
-G_DEFINE_TYPE_WITH_PRIVATE( GtkMovingFiguresArea, gtk_moving_figures_area, GTK_TYPE_WIDGET )
+G_DEFINE_TYPE( GtkMovingFiguresArea, gtk_moving_figures_area, GTK_TYPE_WIDGET )
 
 static void
 gtk_moving_figures_area_init(
 	GtkMovingFiguresArea *self )
 {
-	GtkMovingFiguresAreaPrivate *priv = gtk_moving_figures_area_get_instance_private( self );
 	const GValue *value;
 	guint fig_type;
 
 	value = g_param_spec_get_default_value( object_props[PROP_MINIMUM_WIDTH] );
-	priv->minimum_width = g_value_get_uint( value );
+	self->minimum_width = g_value_get_uint( value );
 
 	value = g_param_spec_get_default_value( object_props[PROP_MINIMUM_HEIGHT] );
-	priv->minimum_height = g_value_get_uint( value );
+	self->minimum_height = g_value_get_uint( value );
 
-	priv->is_realized = FALSE;
+	self->is_realized = FALSE;
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 	{
-		priv->fig[fig_type] = NULL;
-		priv->fignum[fig_type] = 0;
+		self->fig[fig_type] = NULL;
+		self->fignum[fig_type] = 0;
 	}
 }
 
@@ -69,14 +71,13 @@ gtk_moving_figures_area_dispose(
 	GObject *object )
 {
 	GtkMovingFiguresArea *self = GTK_MOVING_FIGURES_AREA( object );
-	GtkMovingFiguresAreaPrivate *priv = gtk_moving_figures_area_get_instance_private( self );
 	guint fig_type;
 
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
-		if( priv->fig[fig_type] != NULL )
+		if( self->fig[fig_type] != NULL )
 		{
-			g_list_free_full( priv->fig[fig_type], (GDestroyNotify)g_object_unref );
-			priv->fig[fig_type] = NULL;
+			g_list_free_full( self->fig[fig_type], (GDestroyNotify)g_object_unref );
+			self->fig[fig_type] = NULL;
 		}
 
 	G_OBJECT_CLASS( gtk_moving_figures_area_parent_class )->dispose( object );
@@ -90,15 +91,14 @@ gtk_moving_figures_area_get_property(
 	GParamSpec *pspec )
 {
 	GtkMovingFiguresArea *self = GTK_MOVING_FIGURES_AREA( object );
-	GtkMovingFiguresAreaPrivate *priv = gtk_moving_figures_area_get_instance_private( self );
 
 	switch( (GtkMovingFiguresAreaPropertyID)prop_id )
 	{
 		case PROP_MINIMUM_WIDTH:
-			g_value_set_uint( value, priv->minimum_width );
+			g_value_set_uint( value, self->minimum_width );
 			break;
 		case PROP_MINIMUM_HEIGHT:
-			g_value_set_uint( value, priv->minimum_height );
+			g_value_set_uint( value, self->minimum_height );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -114,15 +114,14 @@ gtk_moving_figures_area_set_property(
 	GParamSpec *pspec )
 {
 	GtkMovingFiguresArea *self = GTK_MOVING_FIGURES_AREA( object );
-	GtkMovingFiguresAreaPrivate *priv = gtk_moving_figures_area_get_instance_private( self );
 
 	switch( (GtkMovingFiguresAreaPropertyID)prop_id )
 	{
 		case PROP_MINIMUM_WIDTH:
-			priv->minimum_width = g_value_get_uint( value );
+			self->minimum_width = g_value_get_uint( value );
 			break;
 		case PROP_MINIMUM_HEIGHT:
-			priv->minimum_height = g_value_get_uint( value );
+			self->minimum_height = g_value_get_uint( value );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -180,17 +179,15 @@ gtk_moving_figures_area_real_measure(
 	gint *minimum_baseline, gint *natural_baseline )
 {
 	GtkMovingFiguresArea *self;
-	GtkMovingFiguresAreaPrivate *priv;
 
 	g_return_if_fail( GTK_WIDGET( widget ) );
 
 	self = GTK_MOVING_FIGURES_AREA( widget );
-	priv = gtk_moving_figures_area_get_instance_private( self );
 
 	if( orientation == GTK_ORIENTATION_HORIZONTAL )
-		*minimum = *natural = priv->minimum_width;
+		*minimum = *natural = self->minimum_width;
 	else
-		*minimum = *natural = priv->minimum_height;
+		*minimum = *natural = self->minimum_height;
 }
 
 static void
@@ -199,7 +196,6 @@ gtk_moving_figures_area_real_shapshot(
 	GtkSnapshot *snapshot )
 {
 	GtkMovingFiguresArea *self;
-	GtkMovingFiguresAreaPrivate *priv;
 	cairo_t *cr;
 	int fig_type;
 	GList *l;
@@ -209,12 +205,11 @@ gtk_moving_figures_area_real_shapshot(
 	g_return_if_fail( GTK_WIDGET( widget ) );
 
 	self = GTK_MOVING_FIGURES_AREA( widget );
-	priv = gtk_moving_figures_area_get_instance_private( self );
 
 	/* make all figures placed in the initially allocated rectangle */
-	if( !priv->is_realized )
+	if( !self->is_realized )
 	{
-		priv->is_realized = TRUE;
+		self->is_realized = TRUE;
 		gtk_moving_figures_area_reallocate( self );
 	}
 		
@@ -234,7 +229,7 @@ gtk_moving_figures_area_real_shapshot(
 
 	/* draw all figures */
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
-		for( l = priv->fig[fig_type]; l != NULL; l = l->next )
+		for( l = self->fig[fig_type]; l != NULL; l = l->next )
 			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( rect ) ) )
 				g_figure_draw( G_FIGURE( l->data ), cr );
 
@@ -290,15 +285,12 @@ gtk_moving_figures_area_get_max_size_rect(
 	GtkMovingFiguresArea *self,
 	GdkRectangle *rect )
 {
-	GtkMovingFiguresAreaPrivate *priv;
 	guint max_w, max_h;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 
-	priv = gtk_moving_figures_area_get_instance_private( self );
-	
-	max_w = MAX( priv->minimum_width, gtk_widget_get_width( GTK_WIDGET( self ) ) );
-	max_h = MAX( priv->minimum_height, gtk_widget_get_height( GTK_WIDGET( self ) ) );
+	max_w = MAX( self->minimum_width, gtk_widget_get_width( GTK_WIDGET( self ) ) );
+	max_h = MAX( self->minimum_height, gtk_widget_get_height( GTK_WIDGET( self ) ) );
 	*rect = (GdkRectangle){
 		.x = 0,
 		.y = 0,
@@ -326,7 +318,6 @@ void
 gtk_moving_figures_area_reallocate(
 	GtkMovingFiguresArea *self )
 {
-	GtkMovingFiguresAreaPrivate *priv;
 	GdkRectangle rect;
 	guint fig_type;
 	GList *l;
@@ -334,12 +325,11 @@ gtk_moving_figures_area_reallocate(
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 
-	priv = gtk_moving_figures_area_get_instance_private( self );
 	gtk_moving_figures_area_get_max_size_rect( self, &rect );
 
 	rnd = g_rand_new();
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
-		for( l = priv->fig[fig_type]; l != NULL; l = l->next )
+		for( l = self->fig[fig_type]; l != NULL; l = l->next )
 			g_figure_randomize( G_FIGURE( l->data ), rnd, fig_type, &rect );
 	g_rand_free( rnd );
 }
@@ -348,18 +338,16 @@ void
 gtk_moving_figures_area_move(
 	GtkMovingFiguresArea *self )
 {
-	GtkMovingFiguresAreaPrivate *priv;
 	GdkRectangle rect;
 	guint fig_type;
 	GList *l;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 
-	priv = gtk_moving_figures_area_get_instance_private( self );
 	gtk_moving_figures_area_get_max_size_rect( self, &rect );
 
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
-		for( l = priv->fig[fig_type]; l != NULL; l = l->next )
+		for( l = self->fig[fig_type]; l != NULL; l = l->next )
 			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &rect ) )
 				g_figure_move( G_FIGURE( l->data ), &rect );
 }
@@ -370,7 +358,6 @@ gtk_moving_figures_area_append(
 	GtkMovingFigureType fig_type,
 	gint num )
 {
-	GtkMovingFiguresAreaPrivate *priv;
 	GdkRectangle rect;
 	guint i;
 	GFigure *figure;
@@ -379,7 +366,6 @@ gtk_moving_figures_area_append(
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 	g_return_if_fail( num >= 0 );
 
-	priv = gtk_moving_figures_area_get_instance_private( self );
 	gtk_moving_figures_area_get_max_size_rect( self, &rect );
 
 	rnd = g_rand_new();
@@ -405,9 +391,9 @@ gtk_moving_figures_area_append(
 				break;
 		}
 		g_figure_randomize( figure, rnd, fig_type, &rect );
-		priv->fig[fig_type] = g_list_prepend( priv->fig[fig_type], figure );
+		self->fig[fig_type] = g_list_prepend( self->fig[fig_type], figure );
 	}
-	priv->fignum[fig_type] += num;
+	self->fignum[fig_type] += num;
 	g_rand_free( rnd );
 }
 
@@ -417,23 +403,20 @@ gtk_moving_figures_area_remove(
 	GtkMovingFigureType fig_type,
 	gint num )
 {
-	GtkMovingFiguresAreaPrivate *priv;
 	guint i;
 	GList *l;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 	g_return_if_fail( num >= 0 );
 
-	priv = gtk_moving_figures_area_get_instance_private( self );
-
-	for( i = 0, l = priv->fig[fig_type]; i < num && l != NULL; ++i, l = l->next )
+	for( i = 0, l = self->fig[fig_type]; i < num && l != NULL; ++i, l = l->next )
 		g_object_unref( G_OBJECT( l->data ) );
-	priv->fig[fig_type] = l;
+	self->fig[fig_type] = l;
 
-	if( num > priv->fignum[fig_type] )
-		priv->fignum[fig_type] = 0;
+	if( num > self->fignum[fig_type] )
+		self->fignum[fig_type] = 0;
 	else
-		priv->fignum[fig_type] -= num;
+		self->fignum[fig_type] -= num;
 }
 
 void
@@ -442,16 +425,12 @@ gtk_moving_figures_area_set_number(
 	GtkMovingFigureType fig_type,
 	gint num )
 {
-	GtkMovingFiguresAreaPrivate *priv;
-
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 	g_return_if_fail( num >= 0 );
 
-	priv = gtk_moving_figures_area_get_instance_private( self );
-
-	if( num > priv->fignum[fig_type] )
-		gtk_moving_figures_area_append( self, fig_type, num - priv->fignum[fig_type] );
+	if( num > self->fignum[fig_type] )
+		gtk_moving_figures_area_append( self, fig_type, num - self->fignum[fig_type] );
 	else
-		gtk_moving_figures_area_remove( self, fig_type, priv->fignum[fig_type] - num );
+		gtk_moving_figures_area_remove( self, fig_type, self->fignum[fig_type] - num );
 }
 
