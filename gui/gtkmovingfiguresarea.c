@@ -18,6 +18,7 @@ struct _GtkMovingFiguresArea
 	guint minimum_width, minimum_height;
 	GList *fig[N_GTK_MOVING_FIGURE_TYPE];
 	gint fignum[N_GTK_MOVING_FIGURE_TYPE];
+	GdkRectangle rect;
 };
 typedef struct _GtkMovingFiguresArea GtkMovingFiguresArea;
 
@@ -38,7 +39,7 @@ static GParamSpec *object_props[N_PROPS] = { NULL, };
 	private methods
 */
 static void g_figure_randomize( GFigure *figure, GRand *rnd, GtkMovingFigureType fig_type, GdkRectangle *rect );
-static void gtk_moving_figures_area_get_max_size_rect( GtkMovingFiguresArea *self, GdkRectangle *rect );
+static void gtk_moving_figures_area_real_size_allocate( GtkWidget *widget, gint width, gint height, gint baseline );
 static GtkSizeRequestMode gtk_moving_figures_area_real_get_request_mode( GtkWidget *widget );
 static void gtk_moving_figures_area_real_measure( GtkWidget *widget, GtkOrientation orientation, gint for_size, gint *minimum, gint *natural, gint *minimum_baseline, gint *natural_baseline );
 static void gtk_moving_figures_area_real_shapshot( GtkWidget *widget, GtkSnapshot *snapshot );
@@ -64,6 +65,12 @@ gtk_moving_figures_area_init(
 		self->fig[fig_type] = NULL;
 		self->fignum[fig_type] = 0;
 	}
+
+	self->rect = (GdkRectangle){
+		.x = 0,
+		.y = 0,
+		.width = self->minimum_width,
+		.height = self->minimum_height };
 }
 
 static void
@@ -157,9 +164,26 @@ gtk_moving_figures_area_class_init(
 		G_PARAM_READWRITE );
 	g_object_class_install_properties( object_class, N_PROPS, object_props );
 
+	widget_class->size_allocate = gtk_moving_figures_area_real_size_allocate;
 	widget_class->get_request_mode = gtk_moving_figures_area_real_get_request_mode;
 	widget_class->measure = gtk_moving_figures_area_real_measure;
 	widget_class->snapshot = gtk_moving_figures_area_real_shapshot;
+}
+
+static void
+gtk_moving_figures_area_real_size_allocate(
+	GtkWidget *widget,
+	gint width,
+	gint height,
+	gint baseline )
+{
+	GtkMovingFiguresArea *self;
+
+	g_return_if_fail( GTK_IS_WIDGET( widget ) );
+
+	self = GTK_MOVING_FIGURES_AREA( widget );
+	self->rect.width = width;
+	self->rect.height = height;
 }
 
 static GtkSizeRequestMode
@@ -200,7 +224,6 @@ gtk_moving_figures_area_real_shapshot(
 	int fig_type;
 	GList *l;
 	GdkRGBA color;
-	GdkRectangle rect;
 	
 	g_return_if_fail( GTK_WIDGET( widget ) );
 
@@ -213,9 +236,13 @@ gtk_moving_figures_area_real_shapshot(
 		gtk_moving_figures_area_reallocate( self );
 	}
 		
-	/* get the allocated ractangle */
-	gtk_moving_figures_area_get_max_size_rect( self, &rect );
-	cr = gtk_snapshot_append_cairo( snapshot, &GRAPHENE_RECT_INIT( rect.x, rect.y, rect.width, rect.height ) );
+	cr = gtk_snapshot_append_cairo(
+		snapshot,
+		&GRAPHENE_RECT_INIT(
+			self->rect.x,
+			self->rect.y,
+			self->rect.width,
+			self->rect.height ) );
 
 	/* make white canvas */
 	color = (GdkRGBA){
@@ -224,13 +251,13 @@ gtk_moving_figures_area_real_shapshot(
 		.blue = 1.0,
 		.alpha = 1.0 };
 	gdk_cairo_set_source_rgba( cr, &color );
-	gdk_cairo_rectangle( cr, &( rect ) );
+	gdk_cairo_rectangle( cr, &( self->rect ) );
 	cairo_fill( cr );
 
 	/* draw all figures */
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( rect ) ) )
+			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( self->rect ) ) )
 				g_figure_draw( G_FIGURE( l->data ), cr );
 
 	cairo_destroy( cr );
@@ -280,25 +307,6 @@ g_figure_randomize(
 	}
 }
 
-static void
-gtk_moving_figures_area_get_max_size_rect(
-	GtkMovingFiguresArea *self,
-	GdkRectangle *rect )
-{
-	guint max_w, max_h;
-
-	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
-
-	max_w = MAX( self->minimum_width, gtk_widget_get_width( GTK_WIDGET( self ) ) );
-	max_h = MAX( self->minimum_height, gtk_widget_get_height( GTK_WIDGET( self ) ) );
-	*rect = (GdkRectangle){
-		.x = 0,
-		.y = 0,
-		.width = max_w,
-		.height = max_h
-	};
-}
-
 
 /*
 	public
@@ -318,19 +326,16 @@ void
 gtk_moving_figures_area_reallocate(
 	GtkMovingFiguresArea *self )
 {
-	GdkRectangle rect;
 	guint fig_type;
 	GList *l;
 	GRand *rnd;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 
-	gtk_moving_figures_area_get_max_size_rect( self, &rect );
-
 	rnd = g_rand_new();
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			g_figure_randomize( G_FIGURE( l->data ), rnd, fig_type, &rect );
+			g_figure_randomize( G_FIGURE( l->data ), rnd, fig_type, &( self->rect ) );
 	g_rand_free( rnd );
 }
 
@@ -338,18 +343,15 @@ void
 gtk_moving_figures_area_move(
 	GtkMovingFiguresArea *self )
 {
-	GdkRectangle rect;
 	guint fig_type;
 	GList *l;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 
-	gtk_moving_figures_area_get_max_size_rect( self, &rect );
-
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &rect ) )
-				g_figure_move( G_FIGURE( l->data ), &rect );
+			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( self->rect ) ) )
+				g_figure_move( G_FIGURE( l->data ), &( self->rect ) );
 }
 
 void
@@ -358,15 +360,12 @@ gtk_moving_figures_area_append(
 	GtkMovingFigureType fig_type,
 	gint num )
 {
-	GdkRectangle rect;
 	guint i;
 	GFigure *figure;
 	GRand *rnd;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 	g_return_if_fail( num >= 0 );
-
-	gtk_moving_figures_area_get_max_size_rect( self, &rect );
 
 	rnd = g_rand_new();
 	for( i = 0; i < num; ++i )
@@ -390,7 +389,7 @@ gtk_moving_figures_area_append(
 				figure = NULL;
 				break;
 		}
-		g_figure_randomize( figure, rnd, fig_type, &rect );
+		g_figure_randomize( figure, rnd, fig_type, &( self->rect ) );
 		self->fig[fig_type] = g_list_prepend( self->fig[fig_type], figure );
 	}
 	self->fignum[fig_type] += num;
