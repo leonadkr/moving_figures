@@ -7,15 +7,6 @@
 
 G_BEGIN_DECLS
 
-enum _GFigureFillMode
-{
-	G_FIGURE_FILL_MODE_FILL,
-	G_FIGURE_FILL_MODE_UNFILL,
-
-	N_G_FIGURE_FILL_MODE
-};
-typedef enum _GFigureFillMode GFigureFillMode;
-
 #define G_TYPE_FIGURE ( g_figure_get_type() )
 G_DECLARE_DERIVABLE_TYPE( GFigure, g_figure, G, FIGURE, GObject )
 

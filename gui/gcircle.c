@@ -2,9 +2,8 @@
 
 struct _GCirclePrivate
 {
-	guint fill_mode;
-	guint radius;
-	GdkRGBA color;
+	gboolean filled;
+	gfloat radius;
 };
 typedef struct _GCirclePrivate GCirclePrivate;
 
@@ -12,7 +11,7 @@ enum _GCirclePropertyID
 {
 	PROP_0, /* 0 is reserved for GObject */
 
-	PROP_FILL_MODE,
+	PROP_FILLED,
 	PROP_RADIUS,
 
 	N_PROPS
@@ -35,11 +34,11 @@ g_circle_init(
 	GCirclePrivate *priv = g_circle_get_instance_private( self );
 	const GValue *value;
 
-	value = g_param_spec_get_default_value( object_props[PROP_FILL_MODE] );
-	priv->fill_mode = g_value_get_uint( value );
+	value = g_param_spec_get_default_value( object_props[PROP_FILLED] );
+	priv->filled = g_value_get_boolean( value );
 
 	value = g_param_spec_get_default_value( object_props[PROP_RADIUS] );
-	priv->radius = g_value_get_uint( value );
+	priv->radius = g_value_get_float( value );
 }
 
 static void
@@ -54,11 +53,11 @@ g_circle_get_property(
 
 	switch( (GCirclePropertyID)prop_id )
 	{
-		case PROP_FILL_MODE:
-			g_value_set_uint( value, priv->fill_mode );
+		case PROP_FILLED:
+			g_value_set_boolean( value, priv->filled );
 			break;
 		case PROP_RADIUS:
-			g_value_set_uint( value, priv->radius );
+			g_value_set_float( value, priv->radius );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -78,11 +77,11 @@ g_circle_set_property(
 
 	switch( (GCirclePropertyID)prop_id )
 	{
-		case PROP_FILL_MODE:
-			priv->fill_mode = g_value_get_uint( value );
+		case PROP_FILLED:
+			priv->filled = g_value_get_boolean( value );
 			break;
 		case PROP_RADIUS:
-			priv->radius = g_value_get_uint( value );
+			priv->radius = g_value_get_float( value );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -99,21 +98,19 @@ g_circle_class_init(
 
 	object_class->get_property = g_circle_get_property;
 	object_class->set_property = g_circle_set_property;
-	object_props[PROP_FILL_MODE] = g_param_spec_uint(
-		"fill-mode",
-		"Fill mode",
-		"Mode of filling the figure",
-		0,
-		N_G_FIGURE_FILL_MODE - 1,
-		0,
+	object_props[PROP_FILLED] = g_param_spec_boolean(
+		"filled",
+		"Filling the figure",
+		"Indication of filling the figure",
+		FALSE,
 		G_PARAM_READWRITE );
-	object_props[PROP_RADIUS] = g_param_spec_uint(
+	object_props[PROP_RADIUS] = g_param_spec_float(
 		"radius",
 		"Radius",
 		"Radius of figure",
-		0,
-		G_MAXINT,
-		10,
+		2.0,
+		G_MAXFLOAT,
+		10.0,
 		G_PARAM_READWRITE );
 	g_object_class_install_properties( object_class, N_PROPS, object_props );
 
@@ -127,8 +124,8 @@ g_circle_real_draw(
 {
 	GCircle *circle;
 	GCirclePrivate *priv;
-	gint x, y;
-	guint fill_mode;
+	gfloat x, y;
+	gboolean filled;
 	GdkRGBA *color;
 
 	g_return_if_fail( G_IS_FIGURE( figure ) );
@@ -138,7 +135,7 @@ g_circle_real_draw(
 	g_object_get( G_OBJECT( circle ),
 		"x", &x,
 		"y", &y,
-		"fill-mode", &fill_mode,
+		"filled", &filled,
 		"color", &color,
 		NULL );
 
@@ -148,16 +145,10 @@ g_circle_real_draw(
 	cairo_set_line_width( cr, 1.0 );
 	cairo_arc( cr, x, y, priv->radius, 0.0, 2.0 * G_PI );
 
-	switch( fill_mode )
-	{
-		case G_FIGURE_FILL_MODE_FILL:
-			cairo_fill( cr );
-			break;
-		case G_FIGURE_FILL_MODE_UNFILL:
-		default:
-			cairo_stroke( cr );
-			break;
-	}
+	if( filled )
+		cairo_fill( cr );
+	else
+		cairo_stroke( cr );
 
 	cairo_restore( cr );
 }

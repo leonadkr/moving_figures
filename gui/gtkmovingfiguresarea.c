@@ -235,7 +235,7 @@ gtk_moving_figures_area_real_shapshot(
 		self->is_realized = TRUE;
 		gtk_moving_figures_area_reallocate( self );
 	}
-		
+
 	cr = gtk_snapshot_append_cairo(
 		snapshot,
 		&GRAPHENE_RECT_INIT(
@@ -280,12 +280,12 @@ g_figure_randomize(
 		case GTK_MOVING_FIGURE_TYPE_POLYGON:
 			g_object_set( G_OBJECT( figure ),
 				"corner", g_rand_int_range( rnd, 5, 10 ),
-				"rvel", g_rand_int_range( rnd, -180, 180 ) / FPS,
+				"rvel", (gfloat)g_rand_double_range( rnd, -G_PI, G_PI ) / FPS,
 				NULL );
 		case GTK_MOVING_FIGURE_TYPE_CIRCLE:
 			g_object_set( G_OBJECT( figure ),
-				"radius", g_rand_int_range( rnd, 10, 20 ),
-				"fill-mode", g_rand_int_range( rnd, 0, N_G_FIGURE_FILL_MODE ),
+				"radius", (gfloat)g_rand_double_range( rnd, 10.0, 20.0 ),
+				"filled", (gboolean)g_rand_int_range( rnd, 0, 2 ),
 				NULL );
 		case GTK_MOVING_FIGURE_TYPE_POINT:
 			color = (GdkRGBA){
@@ -294,10 +294,10 @@ g_figure_randomize(
 				.blue = g_rand_double( rnd ),
 				.alpha = 1.0 };
 			g_object_set( G_OBJECT( figure ),
-				"x", rect->x + g_rand_int_range( rnd, 0, rect->width ),
-				"y", rect->y + g_rand_int_range( rnd, 0, rect->height ),
-				"velx", g_rand_int_range( rnd, -200, 200 ) / FPS,
-				"vely", g_rand_int_range( rnd, -200, 200 ) / FPS,
+				"x", (gfloat)rect->x + (gfloat)g_rand_double_range( rnd, 0.0, (gdouble)rect->width ),
+				"y", (gfloat)rect->y + (gfloat)g_rand_double_range( rnd, 0.0, (gdouble)rect->height ),
+				"velx", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / FPS,
+				"vely", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / FPS,
 				"color", &color,
 				NULL );
 			break;

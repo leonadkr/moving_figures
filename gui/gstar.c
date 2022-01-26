@@ -22,7 +22,6 @@ static GParamSpec *object_props[N_PROPS] = { NULL, };
 /*
 	private methods
 */
-static inline double degree_to_radian( double degree );
 static void g_star_real_draw( GFigure*, cairo_t* );
 
 G_DEFINE_TYPE_WITH_PRIVATE( GStar, g_star, G_TYPE_POLYGON )
@@ -102,22 +101,15 @@ g_star_class_init(
 	figure_class->draw = g_star_real_draw;
 }
 
-static inline double
-degree_to_radian(
-	double degree )
-{
-	return G_PI * degree / 180.0;
-}
-
 static void
 g_star_real_draw(
 	GFigure *figure,
 	cairo_t *cr )
 {
-	gint x, y, angle;
-	gint i, px, py, j, dj;
-	double da;
-	guint radius, fill_mode, corner;
+	gfloat x, y, angle;
+	gint i, j, dj, corner;
+	gfloat px, py, da, radius;
+	gboolean filled;
 	GdkRGBA *color;
 
 	g_return_if_fail( G_IS_FIGURE( figure ) );
@@ -126,7 +118,7 @@ g_star_real_draw(
 		"x", &x,
 		"y", &y,
 		"radius", &radius,
-		"fill-mode", &fill_mode,
+		"filled", &filled,
 		"color", &color,
 		"corner", &corner,
 		"angle", &angle,
@@ -140,63 +132,57 @@ g_star_real_draw(
 	if( corner % 2 == 0 )
 	{
 		dj = 2;
-		da = (double)360.0 / corner;
+		da = (gfloat)2.0 * G_PI / corner;
 
 		j = 0;
-		px = x + radius * cos( degree_to_radian( (double)angle ) );
-		py = y + radius * sin( degree_to_radian( (double)angle ) );
+		px = x + radius * cosf( angle );
+		py = y + radius * sinf( angle );
 		cairo_move_to( cr, px, py );
 		for( i = 1; i < corner / 2; ++i )
 		{
 			j += dj;
-			px = x + radius * cos( degree_to_radian( (double)angle + da * j ) );
-			py = y + radius * sin( degree_to_radian( (double)angle + da * j ) );
+			px = x + radius * cosf( angle + da * (gfloat)j );
+			py = y + radius * sinf( angle + da * (gfloat)j );
 			cairo_line_to( cr, px, py );
 		}
 		cairo_close_path( cr );
 
 		angle += da;
 		j = 0;
-		px = x + radius * cos( degree_to_radian( (double)angle ) );
-		py = y + radius * sin( degree_to_radian( (double)angle ) );
+		px = x + radius * cosf( angle );
+		py = y + radius * sinf( angle );
 		cairo_move_to( cr, px, py );
 		for( i = 1; i < corner / 2; ++i )
 		{
 			j += dj;
-			px = x + radius * cos( degree_to_radian( (double)angle + da * j ) );
-			py = y + radius * sin( degree_to_radian( (double)angle + da * j ) );
+			px = x + radius * cosf( angle + da * (gfloat)j );
+			py = y + radius * sinf( angle + da * (gfloat)j );
 			cairo_line_to( cr, px, py );
 		}
 		cairo_close_path( cr );
 	} else
 	{
 		dj = ( corner - 1 ) / 2;
-		da = (double)360.0 / corner;
+		da = (gfloat)2.0 * G_PI / corner;
 		
 		j = 0;
-		px = x + radius * cos( degree_to_radian( (double)angle ) );
-		py = y + radius * sin( degree_to_radian( (double)angle ) );
+		px = x + radius * cosf( angle );
+		py = y + radius * sinf( angle );
 		cairo_move_to( cr, px, py );
 		for( i = 1; i < corner; ++i )
 		{
 			j += dj;
-			px = x + radius * cos( degree_to_radian( (double)angle + da * j ) );
-			py = y + radius * sin( degree_to_radian( (double)angle + da * j ) );
+			px = x + radius * cosf( angle + da * (gfloat)j );
+			py = y + radius * sinf( angle + da * (gfloat)j );
 			cairo_line_to( cr, px, py );
 		}
 		cairo_close_path( cr );
 	}
 
-	switch( fill_mode )
-	{
-		case G_FIGURE_FILL_MODE_FILL:
-			cairo_fill( cr );
-			break;
-		case G_FIGURE_FILL_MODE_UNFILL:
-		default:
-			cairo_stroke( cr );
-			break;
-	}
+	if( filled )
+		cairo_fill( cr );
+	else
+		cairo_stroke( cr );
 
 	cairo_restore( cr );
 }

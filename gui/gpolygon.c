@@ -3,9 +3,9 @@
 
 struct _GPolygonPrivate
 {
-	gint rvel;
+	gfloat rvel;
 	guint corner;
-	gint angle;
+	gfloat angle;
 };
 typedef struct _GPolygonPrivate GPolygonPrivate;
 
@@ -27,7 +27,6 @@ static GParamSpec *object_props[N_PROPS] = { NULL, };
 	private methods
 */
 static void g_polygon_real_move( GFigure*, GdkRectangle* );
-static inline double degree_to_radian( double degree );
 static void g_polygon_real_draw( GFigure*, cairo_t* );
 
 G_DEFINE_TYPE_WITH_PRIVATE( GPolygon, g_polygon, G_TYPE_CIRCLE )
@@ -40,13 +39,13 @@ g_polygon_init(
 	const GValue *value;
 
 	value = g_param_spec_get_default_value( object_props[PROP_RVEL] );
-	priv->rvel = g_value_get_int( value );
+	priv->rvel = g_value_get_float( value );
 	
 	value = g_param_spec_get_default_value( object_props[PROP_CORNER] );
 	priv->corner = g_value_get_uint( value );
 
 	value = g_param_spec_get_default_value( object_props[PROP_ANGLE] );
-	priv->angle = g_value_get_int( value );
+	priv->angle = g_value_get_float( value );
 }
 
 static void
@@ -62,13 +61,13 @@ g_polygon_get_property(
 	switch( (GPolygonPropertyID)prop_id )
 	{
 		case PROP_RVEL:
-			g_value_set_int( value, priv->rvel );
+			g_value_set_float( value, priv->rvel );
 			break;
 		case PROP_CORNER:
 			g_value_set_uint( value, priv->corner );
 			break;
 		case PROP_ANGLE:
-			g_value_set_int( value, priv->angle );
+			g_value_set_float( value, priv->angle );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -89,7 +88,7 @@ g_polygon_set_property(
 	switch( (GPolygonPropertyID)prop_id )
 	{
 		case PROP_RVEL:
-			priv->rvel = g_value_get_int( value );
+			priv->rvel = g_value_get_float( value );
 			break;
 		case PROP_CORNER:
 			priv->corner = g_value_get_uint( value );
@@ -109,13 +108,13 @@ g_polygon_class_init(
 
 	object_class->get_property = g_polygon_get_property;
 	object_class->set_property = g_polygon_set_property;
-	object_props[PROP_RVEL] = g_param_spec_int(
+	object_props[PROP_RVEL] = g_param_spec_float(
 		"rvel",
 		"Rotate velocity",
-		"Rotate velocity in degrees as int",
-		-G_MAXINT,
-		G_MAXINT,
-		0,
+		"Rotate velocity in radians as float",
+		-G_MAXFLOAT,
+		G_MAXFLOAT,
+		0.0,
 		G_PARAM_READWRITE );
 	object_props[PROP_CORNER] = g_param_spec_uint(
 		"corner",
@@ -125,13 +124,13 @@ g_polygon_class_init(
 		G_MAXINT,
 		3,
 		G_PARAM_READWRITE );
-	object_props[PROP_ANGLE] = g_param_spec_int(
+	object_props[PROP_ANGLE] = g_param_spec_float(
 		"angle",
 		"Angle from x-axis",
-		"Angle from x-axis in [-180:180] degrees as int",
-		-180,
-		180,
-		0,
+		"Angle from x-axis in radians as float",
+		-G_MAXFLOAT,
+		G_MAXFLOAT,
+		0.0,
 		G_PARAM_READABLE );
 	g_object_class_install_properties( object_class, N_PROPS, object_props );
 
@@ -158,17 +157,10 @@ g_polygon_real_move(
 	priv = g_polygon_get_instance_private( polygon );
 
 	priv->angle += priv->rvel;
-	if( priv->angle >= 180 )
-		priv->angle -= 360;
-	if( priv->angle < -180 )
-		priv->angle += 360;
-}
-
-static inline double
-degree_to_radian(
-	double degree )
-{
-	return G_PI * degree / 180.0;
+	if( priv->angle > G_PI )
+		priv->angle -= 2.0 * G_PI;
+	if( priv->angle < -G_PI )
+		priv->angle += 2.0 * G_PI;
 }
 
 static void
@@ -178,10 +170,12 @@ g_polygon_real_draw(
 {
 	GPolygon *polygon;
 	GPolygonPrivate *priv;
-	gint x, y;
-	gint i, px, py;
-	double da;
-	guint radius, fill_mode;
+	gfloat x, y;
+	gint i;
+	gfloat px, py;
+	gfloat da;
+	gfloat radius;
+	gboolean filled;
 	GdkRGBA *color;
 
 	g_return_if_fail( G_IS_FIGURE( figure ) );
@@ -192,7 +186,7 @@ g_polygon_real_draw(
 		"x", &x,
 		"y", &y,
 		"radius", &radius,
-		"fill-mode", &fill_mode,
+		"filled", &filled,
 		"color", &color,
 		NULL );
 
@@ -201,28 +195,22 @@ g_polygon_real_draw(
 	cairo_set_source_rgba( cr, color->red, color->green, color->blue, color->alpha );
 	cairo_set_line_width( cr, 1.0 );
 
-	da = (double)360.0 / priv->corner;
-	px = x + radius * cos( degree_to_radian( (double)priv->angle ) );
-	py = y + radius * sin( degree_to_radian( (double)priv->angle ) );
+	da = (gfloat)2.0 * G_PI / priv->corner;
+	px = x + radius * cosf( priv->angle );
+	py = y + radius * sinf( priv->angle );
 	cairo_move_to( cr, px, py );
 	for( i = 1; i < priv->corner; ++i )
 	{
-		px = x + radius * cos( degree_to_radian( (double)priv->angle + da * i ) );
-		py = y + radius * sin( degree_to_radian( (double)priv->angle + da * i ) );
+		px = x + radius * cosf( priv->angle + da * (gfloat)i );
+		py = y + radius * sinf( priv->angle + da * (gfloat)i );
 		cairo_line_to( cr, px, py );
 	}
 	cairo_close_path( cr );
 
-	switch( fill_mode )
-	{
-		case G_FIGURE_FILL_MODE_FILL:
-			cairo_fill( cr );
-			break;
-		case G_FIGURE_FILL_MODE_UNFILL:
-		default:
-			cairo_stroke( cr );
-			break;
-	}
+	if( filled )
+		cairo_fill( cr );
+	else
+		cairo_stroke( cr );
 
 	cairo_restore( cr );
 }

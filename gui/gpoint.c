@@ -103,7 +103,7 @@ g_point_real_draw(
 {
 	GPoint *point;
 	GPointPrivate *priv;
-	int x, y;
+	gfloat x, y;
 
 	g_return_if_fail( G_IS_FIGURE( figure ) );
 

@@ -2,8 +2,8 @@
 
 struct _GFigurePrivate
 {
-	gint x, y;
-	gint velx, vely;
+	gfloat x, y;
+	gfloat velx, vely;
 };
 typedef struct _GFigurePrivate GFigurePrivate;
 
@@ -37,16 +37,16 @@ g_figure_init(
 	const GValue *value;
 
 	value = g_param_spec_get_default_value( object_props[PROP_X] );
-	priv->x = g_value_get_int( value );
+	priv->x = g_value_get_float( value );
 	
 	value = g_param_spec_get_default_value( object_props[PROP_Y] );
-	priv->y = g_value_get_int( value );
+	priv->y = g_value_get_float( value );
 
 	value = g_param_spec_get_default_value( object_props[PROP_VELX] );
-	priv->velx = g_value_get_int( value );
+	priv->velx = g_value_get_float( value );
 
 	value = g_param_spec_get_default_value( object_props[PROP_VELY] );
-	priv->vely = g_value_get_int( value );
+	priv->vely = g_value_get_float( value );
 }
 
 static void
@@ -62,16 +62,16 @@ g_figure_get_property(
 	switch( (GFigurePropertyID)prop_id )
 	{
 		case PROP_X:
-			g_value_set_int( value, priv->x );
+			g_value_set_float( value, priv->x );
 			break;
 		case PROP_Y:
-			g_value_set_int( value, priv->y );
+			g_value_set_float( value, priv->y );
 			break;
 		case PROP_VELX:
-			g_value_set_int( value, priv->velx );
+			g_value_set_float( value, priv->velx );
 			break;
 		case PROP_VELY:
-			g_value_set_int( value, priv->vely );
+			g_value_set_float( value, priv->vely );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -92,16 +92,16 @@ g_figure_set_property(
 	switch( (GFigurePropertyID)prop_id )
 	{
 		case PROP_X:
-			priv->x = g_value_get_int( value );
+			priv->x = g_value_get_float( value );
 			break;
 		case PROP_Y:
-			priv->y = g_value_get_int( value );
+			priv->y = g_value_get_float( value );
 			break;
 		case PROP_VELX:
-			priv->velx = g_value_get_int( value );
+			priv->velx = g_value_get_float( value );
 			break;
 		case PROP_VELY:
-			priv->vely = g_value_get_int( value );
+			priv->vely = g_value_get_float( value );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -117,37 +117,37 @@ g_figure_class_init(
 
 	object_class->get_property = g_figure_get_property;
 	object_class->set_property = g_figure_set_property;
-	object_props[PROP_X] = g_param_spec_int(
+	object_props[PROP_X] = g_param_spec_float(
 		"x",
 		"X",
-		"X coordiante of the figure as int",
-		-G_MAXINT,
-		G_MAXINT,
-		0,
+		"X coordiante of the figure as float",
+		-G_MAXFLOAT,
+		G_MAXFLOAT,
+		0.0,
 		G_PARAM_READWRITE );
-	object_props[PROP_Y] = g_param_spec_int(
+	object_props[PROP_Y] = g_param_spec_float(
 		"y",
 		"Y",
-		"Y coordiante of the figure as int",
-		-G_MAXINT,
-		G_MAXINT,
-		0,
+		"Y coordiante of the figure as float",
+		-G_MAXFLOAT,
+		G_MAXFLOAT,
+		0.0,
 		G_PARAM_READWRITE );
-	object_props[PROP_VELX] = g_param_spec_int(
+	object_props[PROP_VELX] = g_param_spec_float(
 		"velx",
 		"VelX",
-		"X coordiante of the figure velocity as int",
-		-G_MAXINT,
-		G_MAXINT,
-		0,
+		"X coordiante of the figure velocity as float",
+		-G_MAXFLOAT,
+		G_MAXFLOAT,
+		0.0,
 		G_PARAM_READWRITE );
-	object_props[PROP_VELY] = g_param_spec_int(
+	object_props[PROP_VELY] = g_param_spec_float(
 		"vely",
 		"VelY",
-		"Y coordiante of the figure velocity as int",
-		-G_MAXINT,
-		G_MAXINT,
-		0,
+		"Y coordiante of the figure velocity as float",
+		-G_MAXFLOAT,
+		G_MAXFLOAT,
+		0.0,
 		G_PARAM_READWRITE );
 	g_object_class_install_properties( object_class, N_PROPS, object_props );
 
@@ -166,9 +166,9 @@ g_figure_real_move(
 	
 	priv = g_figure_get_instance_private( self );
 
-	if( priv->x + priv->velx >= rect->x + rect->width || priv->x + priv->velx <= rect->x )
+	if( priv->x + priv->velx > (gfloat)rect->x + rect->width || priv->x + priv->velx < (gfloat)rect->x )
 		priv->velx = -priv->velx;
-	if( priv->y + priv->vely >= rect->y + rect->height || priv->y + priv->vely <= rect->y )
+	if( priv->y + priv->vely > (gfloat)rect->y + rect->height || priv->y + priv->vely < (gfloat)rect->y )
 		priv->vely = -priv->vely;
 
 	priv->x += priv->velx;
