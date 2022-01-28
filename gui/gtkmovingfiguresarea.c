@@ -44,7 +44,7 @@ static GtkSizeRequestMode gtk_moving_figures_area_real_get_request_mode( GtkWidg
 static void gtk_moving_figures_area_real_measure( GtkWidget *widget, GtkOrientation orientation, gint for_size, gint *minimum, gint *natural, gint *minimum_baseline, gint *natural_baseline );
 static void gtk_moving_figures_area_real_shapshot( GtkWidget *widget, GtkSnapshot *snapshot );
 
-G_DEFINE_TYPE( GtkMovingFiguresArea, gtk_moving_figures_area, GTK_TYPE_WIDGET )
+G_DEFINE_FINAL_TYPE( GtkMovingFiguresArea, gtk_moving_figures_area, GTK_TYPE_WIDGET )
 
 static void
 gtk_moving_figures_area_init(
@@ -60,6 +60,7 @@ gtk_moving_figures_area_init(
 	self->minimum_height = g_value_get_uint( value );
 
 	self->is_realized = FALSE;
+
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 	{
 		self->fig[fig_type] = NULL;
