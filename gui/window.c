@@ -6,7 +6,7 @@
 /*
 	definitions
 */
-#define FPS ( 30.0 )
+#define FPS ( 30.0f )
 
 enum _ButtonState
 {

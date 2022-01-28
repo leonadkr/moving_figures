@@ -1,9 +1,13 @@
 #include "gcircle.h"
 
+#define MAX_VERTEX_NUM 21
+
 struct _GCirclePrivate
 {
 	gboolean filled;
 	gfloat radius;
+
+	gfloat vertex[2*MAX_VERTEX_NUM];
 };
 typedef struct _GCirclePrivate GCirclePrivate;
 
@@ -23,6 +27,7 @@ static GParamSpec *object_props[N_PROPS] = { NULL, };
 /*
 	private methods
 */
+static void g_circle_calculate_vertices( GCircle *self );
 static void g_circle_real_draw( GFigure*, cairo_t* );
 
 G_DEFINE_TYPE_WITH_PRIVATE( GCircle, g_circle, G_TYPE_POINT )
@@ -39,6 +44,8 @@ g_circle_init(
 
 	value = g_param_spec_get_default_value( object_props[PROP_RADIUS] );
 	priv->radius = g_value_get_float( value );
+
+	g_circle_calculate_vertices( self );
 }
 
 static void
@@ -118,21 +125,44 @@ g_circle_class_init(
 }
 
 static void
+g_circle_calculate_vertices(
+	GCircle *self )
+{
+	GCirclePrivate *priv;
+	gfloat da;
+	gint i, j;
+
+	g_return_if_fail( G_IS_CIRCLE( self ) );
+
+	priv = g_circle_get_instance_private( self );
+
+	priv->vertex[0] = 0.0;
+	priv->vertex[1] = 0.0;
+	da = 2.0 * G_PI / (gfloat)( MAX_VERTEX_NUM - 1 );
+	for( i = 0, j = 2; i < MAX_VERTEX_NUM - 1; ++i, j += 2 )
+	{
+		priv->vertex[j] = sinf( (gfloat)i * da );
+		priv->vertex[j+1] = cosf( (gfloat)i * da );
+	}
+}
+
+static void
 g_circle_real_draw(
 	GFigure *figure,
 	cairo_t *cr )
 {
-	GCircle *circle;
+	GCircle *self;
 	GCirclePrivate *priv;
+	gint i, j;
 	gfloat x, y;
 	gboolean filled;
 	GdkRGBA *color;
 
 	g_return_if_fail( G_IS_FIGURE( figure ) );
 
-	circle = G_CIRCLE( figure );
-	priv = g_circle_get_instance_private( circle );
-	g_object_get( G_OBJECT( circle ),
+	self = G_CIRCLE( figure );
+	priv = g_circle_get_instance_private( self );
+	g_object_get( G_OBJECT( self ),
 		"x", &x,
 		"y", &y,
 		"filled", &filled,
@@ -143,7 +173,17 @@ g_circle_real_draw(
 
 	cairo_set_source_rgba( cr, color->red, color->green, color->blue, color->alpha );
 	cairo_set_line_width( cr, 1.0 );
-	cairo_arc( cr, x, y, priv->radius, 0.0, 2.0 * G_PI );
+
+	cairo_move_to(
+		cr,
+		x + priv->radius * priv->vertex[2],
+		y + priv->radius * priv->vertex[3] );
+	for( i = 1, j = 4; i < MAX_VERTEX_NUM - 1; ++i, j += 2 )
+		cairo_line_to(
+			cr,
+			x + priv->radius * priv->vertex[j],
+			y + priv->radius * priv->vertex[j+1] );
+	cairo_close_path( cr );
 
 	if( filled )
 		cairo_fill( cr );

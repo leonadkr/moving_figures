@@ -1,11 +1,15 @@
 #include <math.h>
 #include "gpolygon.h"
 
+#define MAX_VERTEX_NUM 21
+
 struct _GPolygonPrivate
 {
 	gfloat rvel;
 	guint corner;
 	gfloat angle;
+
+	gfloat vertex[2*MAX_VERTEX_NUM];
 };
 typedef struct _GPolygonPrivate GPolygonPrivate;
 
@@ -26,6 +30,7 @@ static GParamSpec *object_props[N_PROPS] = { NULL, };
 /*
 	private methods
 */
+static void g_polygon_calculate_vertices( GPolygon *self );
 static void g_polygon_real_move( GFigure*, GdkRectangle* );
 static void g_polygon_real_draw( GFigure*, cairo_t* );
 
@@ -46,6 +51,8 @@ g_polygon_init(
 
 	value = g_param_spec_get_default_value( object_props[PROP_ANGLE] );
 	priv->angle = g_value_get_float( value );
+
+	g_polygon_calculate_vertices( self );
 }
 
 static void
@@ -92,6 +99,7 @@ g_polygon_set_property(
 			break;
 		case PROP_CORNER:
 			priv->corner = g_value_get_uint( value );
+			g_polygon_calculate_vertices( self );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -119,9 +127,9 @@ g_polygon_class_init(
 	object_props[PROP_CORNER] = g_param_spec_uint(
 		"corner",
 		"Number of corners",
-		"Number of polygon corners in [3:MAXINT] as int",
+		"Number of polygon corners as unsigned int",
 		3,
-		G_MAXINT,
+		MAX_VERTEX_NUM - 1,
 		3,
 		G_PARAM_READWRITE );
 	object_props[PROP_ANGLE] = g_param_spec_float(
@@ -164,6 +172,28 @@ g_polygon_real_move(
 }
 
 static void
+g_polygon_calculate_vertices(
+	GPolygon *self )
+{
+	GPolygonPrivate *priv;
+	gfloat da;
+	gint i, j;
+
+	g_return_if_fail( G_IS_POLYGON( self ) );
+
+	priv = g_polygon_get_instance_private( self );
+
+	priv->vertex[0] = 0.0;
+	priv->vertex[1] = 0.0;
+	da = 2.0 * G_PI / (gfloat)priv->corner;
+	for( i = 0, j = 2; i < priv->corner; ++i, j += 2 )
+	{
+		priv->vertex[j] = sinf( (gfloat)i * da );
+		priv->vertex[j+1] = cosf( (gfloat)i * da );
+	}
+}
+
+static void
 g_polygon_real_draw(
 	GFigure *figure,
 	cairo_t *cr )
@@ -171,9 +201,7 @@ g_polygon_real_draw(
 	GPolygon *polygon;
 	GPolygonPrivate *priv;
 	gfloat x, y;
-	gint i;
-	gfloat px, py;
-	gfloat da;
+	gint i, j;
 	gfloat radius;
 	gboolean filled;
 	GdkRGBA *color;
@@ -195,16 +223,15 @@ g_polygon_real_draw(
 	cairo_set_source_rgba( cr, color->red, color->green, color->blue, color->alpha );
 	cairo_set_line_width( cr, 1.0 );
 
-	da = (gfloat)2.0 * G_PI / priv->corner;
-	px = x + radius * cosf( priv->angle );
-	py = y + radius * sinf( priv->angle );
-	cairo_move_to( cr, px, py );
-	for( i = 1; i < priv->corner; ++i )
-	{
-		px = x + radius * cosf( priv->angle + da * (gfloat)i );
-		py = y + radius * sinf( priv->angle + da * (gfloat)i );
-		cairo_line_to( cr, px, py );
-	}
+	cairo_move_to(
+		cr,
+		x + radius * ( sinf( priv->angle ) * priv->vertex[2] + cosf( priv->angle ) * priv->vertex[3] ),
+		y + radius * ( -cosf( priv->angle ) * priv->vertex[2] + sinf( priv->angle ) * priv->vertex[3] ) );
+	for( i = 1, j = 4; i < priv->corner; ++i, j += 2 )
+		cairo_line_to(
+			cr,
+			x + radius * ( sinf( priv->angle ) * priv->vertex[j] + cosf( priv->angle ) * priv->vertex[j+1] ),
+			y + radius * ( -cosf( priv->angle ) * priv->vertex[j] + sinf( priv->angle ) * priv->vertex[j+1] ) );
 	cairo_close_path( cr );
 
 	if( filled )

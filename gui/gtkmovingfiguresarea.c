@@ -298,9 +298,24 @@ g_figure_randomize(
 	switch( fig_type )
 	{
 		case GTK_MOVING_FIGURE_TYPE_STAR:
+			g_object_set( G_OBJECT( figure ),
+				"corner", g_rand_int_range( rnd, 5, 15 ),
+				NULL );
+			break;
 		case GTK_MOVING_FIGURE_TYPE_POLYGON:
 			g_object_set( G_OBJECT( figure ),
-				"corner", g_rand_int_range( rnd, 5, 10 ),
+				"corner", g_rand_int_range( rnd, 3, 15 ),
+				NULL );
+			break;
+		default:
+			break;
+	}
+
+	switch( fig_type )
+	{
+		case GTK_MOVING_FIGURE_TYPE_STAR:
+		case GTK_MOVING_FIGURE_TYPE_POLYGON:
+			g_object_set( G_OBJECT( figure ),
 				"rvel", (gfloat)g_rand_double_range( rnd, -G_PI, G_PI ) / fps,
 				NULL );
 		case GTK_MOVING_FIGURE_TYPE_CIRCLE:

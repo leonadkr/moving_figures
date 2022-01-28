@@ -1,9 +1,13 @@
 #include <math.h>
 #include "gstar.h"
 
+#define MAX_VERTEX_NUM 22
+
 struct _GStarPrivate
 {
 	guint corner;
+
+	gfloat vertex[2*MAX_VERTEX_NUM];
 };
 typedef struct _GStarPrivate GStarPrivate;
 
@@ -22,6 +26,7 @@ static GParamSpec *object_props[N_PROPS] = { NULL, };
 /*
 	private methods
 */
+static void g_star_calculate_vertices( GStar *self );
 static void g_star_real_draw( GFigure*, cairo_t* );
 
 G_DEFINE_TYPE_WITH_PRIVATE( GStar, g_star, G_TYPE_POLYGON )
@@ -35,6 +40,8 @@ g_star_init(
 
 	value = g_param_spec_get_default_value( object_props[PROP_CORNER] );
 	priv->corner = g_value_get_uint( value );
+
+	g_star_calculate_vertices( self );
 }
 
 static void
@@ -72,6 +79,7 @@ g_star_set_property(
 	{
 		case PROP_CORNER:
 			priv->corner = g_value_get_uint( value );
+			g_star_calculate_vertices( self );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -91,9 +99,9 @@ g_star_class_init(
 	object_props[PROP_CORNER] = g_param_spec_uint(
 		"corner",
 		"Number of corners",
-		"Number of star corners in [5:MAXINT] as int",
+		"Number of star corners as int",
 		5,
-		G_MAXINT,
+		MAX_VERTEX_NUM - 2,
 		5,
 		G_PARAM_READWRITE );
 	g_object_class_install_properties( object_class, N_PROPS, object_props );
@@ -102,17 +110,68 @@ g_star_class_init(
 }
 
 static void
+g_star_calculate_vertices(
+	GStar *self )
+{
+	GStarPrivate *priv;
+	gfloat da;
+	gint i, j, k, dk;
+
+	g_return_if_fail( G_IS_STAR( self ) );
+
+	priv = g_star_get_instance_private( self );
+
+	if( priv->corner % 2 == 0 )
+	{
+		priv->vertex[0] = 0.0;
+		priv->vertex[1] = 0.0;
+		da = 2.0 * G_PI / (gfloat)priv->corner;
+		dk = 2;
+		for( i = 0, j = 2, k = 0; i < priv->corner / 2; ++i, j += 2, k += dk )
+		{
+			priv->vertex[j] = sinf( (gfloat)k * da );
+			priv->vertex[j+1] = cosf( (gfloat)k * da );
+		}
+
+		j += 2;
+		priv->vertex[j] = 0.0;
+		priv->vertex[j+1] = 0.0;
+		for( i = 0, j += 2, k = 1; i < priv->corner / 2; ++i, j += 2, k += dk )
+		{
+			priv->vertex[j] = sinf( (gfloat)k * da );
+			priv->vertex[j+1] = cosf( (gfloat)k * da );
+		}
+	} else
+	{
+		priv->vertex[0] = 0.0;
+		priv->vertex[1] = 0.0;
+		da = 2.0 * G_PI / (gfloat)priv->corner;
+		dk = ( priv->corner - 1 ) / 2;
+		for( i = 0, j = 2, k = 0; i < priv->corner; ++i, j += 2, k += dk )
+		{
+			priv->vertex[j] = sinf( (gfloat)k * da );
+			priv->vertex[j+1] = cosf( (gfloat)k * da );
+		}
+	}
+}
+
+static void
 g_star_real_draw(
 	GFigure *figure,
 	cairo_t *cr )
 {
-	gfloat x, y, angle;
-	gint i, j, dj, corner;
-	gfloat px, py, da, radius;
+	GStar *self;
+	GStarPrivate *priv;
+	gfloat radius, angle;
+	gfloat x, y;
+	gint i, j;
 	gboolean filled;
 	GdkRGBA *color;
 
 	g_return_if_fail( G_IS_FIGURE( figure ) );
+
+	self = G_STAR( figure );
+	priv = g_star_get_instance_private( self );
 
 	g_object_get( G_OBJECT( figure ),
 		"x", &x,
@@ -120,7 +179,6 @@ g_star_real_draw(
 		"radius", &radius,
 		"filled", &filled,
 		"color", &color,
-		"corner", &corner,
 		"angle", &angle,
 		NULL );
 
@@ -129,53 +187,42 @@ g_star_real_draw(
 	cairo_set_source_rgba( cr, color->red, color->green, color->blue, color->alpha );
 	cairo_set_line_width( cr, 1.0 );
 
-	if( corner % 2 == 0 )
+	if( priv->corner % 2 == 0 )
 	{
-		dj = 2;
-		da = (gfloat)2.0 * G_PI / corner;
-
-		j = 0;
-		px = x + radius * cosf( angle );
-		py = y + radius * sinf( angle );
-		cairo_move_to( cr, px, py );
-		for( i = 1; i < corner / 2; ++i )
-		{
-			j += dj;
-			px = x + radius * cosf( angle + da * (gfloat)j );
-			py = y + radius * sinf( angle + da * (gfloat)j );
-			cairo_line_to( cr, px, py );
-		}
+		cairo_move_to(
+			cr,
+			x + radius * ( sinf( angle ) * priv->vertex[2] + cosf( angle ) * priv->vertex[3] ),
+			y + radius * ( -cosf( angle ) * priv->vertex[2] + sinf( angle ) * priv->vertex[3] ) );
+		for( i = 1, j = 4; i < priv->corner / 2; ++i, j += 2 )
+			cairo_line_to(
+				cr,
+				x + radius * ( sinf( angle ) * priv->vertex[j] + cosf( angle ) * priv->vertex[j+1] ),
+				y + radius * ( -cosf( angle ) * priv->vertex[j] + sinf( angle ) * priv->vertex[j+1] ) );
 		cairo_close_path( cr );
 
-		angle += da;
-		j = 0;
-		px = x + radius * cosf( angle );
-		py = y + radius * sinf( angle );
-		cairo_move_to( cr, px, py );
-		for( i = 1; i < corner / 2; ++i )
-		{
-			j += dj;
-			px = x + radius * cosf( angle + da * (gfloat)j );
-			py = y + radius * sinf( angle + da * (gfloat)j );
-			cairo_line_to( cr, px, py );
-		}
+		j += 4;
+		cairo_move_to(
+			cr,
+			x + radius * ( sinf( angle ) * priv->vertex[j] + cosf( angle ) * priv->vertex[j+1] ),
+			y + radius * ( -cosf( angle ) * priv->vertex[j] + sinf( angle ) * priv->vertex[j+1] ) );
+		for( i = 1, j += 2; i < priv->corner / 2; ++i, j += 2 )
+			cairo_line_to(
+				cr,
+				x + radius * ( sinf( angle ) * priv->vertex[j] + cosf( angle ) * priv->vertex[j+1] ),
+				y + radius * ( -cosf( angle ) * priv->vertex[j] + sinf( angle ) * priv->vertex[j+1] ) );
 		cairo_close_path( cr );
-	} else
+	}
+	else
 	{
-		dj = ( corner - 1 ) / 2;
-		da = (gfloat)2.0 * G_PI / corner;
-		
-		j = 0;
-		px = x + radius * cosf( angle );
-		py = y + radius * sinf( angle );
-		cairo_move_to( cr, px, py );
-		for( i = 1; i < corner; ++i )
-		{
-			j += dj;
-			px = x + radius * cosf( angle + da * (gfloat)j );
-			py = y + radius * sinf( angle + da * (gfloat)j );
-			cairo_line_to( cr, px, py );
-		}
+		cairo_move_to(
+			cr,
+			x + radius * ( sinf( angle ) * priv->vertex[2] + cosf( angle ) * priv->vertex[3] ),
+			y + radius * ( -cosf( angle ) * priv->vertex[2] + sinf( angle ) * priv->vertex[3] ) );
+		for( i = 1, j = 4; i < priv->corner; ++i, j += 2 )
+			cairo_line_to(
+				cr,
+				x + radius * ( sinf( angle ) * priv->vertex[j] + cosf( angle ) * priv->vertex[j+1] ),
+				y + radius * ( -cosf( angle ) * priv->vertex[j] + sinf( angle ) * priv->vertex[j+1] ) );
 		cairo_close_path( cr );
 	}
 
