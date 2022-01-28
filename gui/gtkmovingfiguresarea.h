@@ -21,7 +21,7 @@ typedef enum _GtkMovingFigureType GtkMovingFigureType;
 #define GTK_TYPE_MOVING_FIGURES_AREA ( gtk_moving_figures_area_get_type() )
 G_DECLARE_FINAL_TYPE( GtkMovingFiguresArea, gtk_moving_figures_area, GTK, MOVING_FIGURES_AREA, GtkWidget )
 
-GtkMovingFiguresArea* gtk_moving_figures_area_new( guint, guint );
+GtkMovingFiguresArea* gtk_moving_figures_area_new( guint, guint, gfloat );
 void gtk_moving_figures_area_reallocate( GtkMovingFiguresArea* );
 void gtk_moving_figures_area_move( GtkMovingFiguresArea* );
 void gtk_moving_figures_area_append( GtkMovingFiguresArea*, GtkMovingFigureType, gint );

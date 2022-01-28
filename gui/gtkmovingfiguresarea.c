@@ -3,7 +3,6 @@
 
 #include "gtkmovingfiguresarea.h"
 
-#include "fps.h"
 #include "gpoint.h"
 #include "gcircle.h"
 #include "gpolygon.h"
@@ -14,8 +13,10 @@ struct _GtkMovingFiguresArea
 {
 	GtkWidget parent_instance;
 
-	gboolean is_realized;
 	guint minimum_width, minimum_height;
+	gfloat fps;
+
+	gboolean is_realized;
 	GList *fig[N_GTK_MOVING_FIGURE_TYPE];
 	gint fignum[N_GTK_MOVING_FIGURE_TYPE];
 	GdkRectangle rect;
@@ -28,6 +29,7 @@ enum _GtkMovingFiguresAreaPropertyID
 
 	PROP_MINIMUM_WIDTH,
 	PROP_MINIMUM_HEIGHT,
+	PROP_FPS,
 
 	N_PROPS
 };
@@ -38,7 +40,7 @@ static GParamSpec *object_props[N_PROPS] = { NULL, };
 /*
 	private methods
 */
-static void g_figure_randomize( GFigure *figure, GRand *rnd, GtkMovingFigureType fig_type, GdkRectangle *rect );
+static void g_figure_randomize( GFigure *figure, GRand *rnd, GtkMovingFigureType fig_type, GdkRectangle *rect, gfloat fps );
 static void gtk_moving_figures_area_real_size_allocate( GtkWidget *widget, gint width, gint height, gint baseline );
 static GtkSizeRequestMode gtk_moving_figures_area_real_get_request_mode( GtkWidget *widget );
 static void gtk_moving_figures_area_real_measure( GtkWidget *widget, GtkOrientation orientation, gint for_size, gint *minimum, gint *natural, gint *minimum_baseline, gint *natural_baseline );
@@ -58,6 +60,9 @@ gtk_moving_figures_area_init(
 
 	value = g_param_spec_get_default_value( object_props[PROP_MINIMUM_HEIGHT] );
 	self->minimum_height = g_value_get_uint( value );
+
+	value = g_param_spec_get_default_value( object_props[PROP_FPS] );
+	self->fps = g_value_get_float( value );
 
 	self->is_realized = FALSE;
 
@@ -108,6 +113,9 @@ gtk_moving_figures_area_get_property(
 		case PROP_MINIMUM_HEIGHT:
 			g_value_set_uint( value, self->minimum_height );
 			break;
+		case PROP_FPS:
+			g_value_set_float( value, self->fps );
+			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 			break;
@@ -130,6 +138,9 @@ gtk_moving_figures_area_set_property(
 			break;
 		case PROP_MINIMUM_HEIGHT:
 			self->minimum_height = g_value_get_uint( value );
+			break;
+		case PROP_FPS:
+			self->fps = g_value_get_float( value );
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -162,6 +173,14 @@ gtk_moving_figures_area_class_init(
 		1,
 		G_MAXUINT,
 		1,
+		G_PARAM_READWRITE );
+	object_props[PROP_FPS] = g_param_spec_float(
+		"fps",
+		"Frame per second",
+		"Frame per second",
+		1.0,
+		G_MAXFLOAT,
+		1.0,
 		G_PARAM_READWRITE );
 	g_object_class_install_properties( object_class, N_PROPS, object_props );
 
@@ -269,7 +288,8 @@ g_figure_randomize(
 	GFigure *figure,
 	GRand *rnd,
 	GtkMovingFigureType fig_type,
-	GdkRectangle *rect )
+	GdkRectangle *rect,
+	gfloat fps )
 {
 	GdkRGBA color;
 
@@ -281,7 +301,7 @@ g_figure_randomize(
 		case GTK_MOVING_FIGURE_TYPE_POLYGON:
 			g_object_set( G_OBJECT( figure ),
 				"corner", g_rand_int_range( rnd, 5, 10 ),
-				"rvel", (gfloat)g_rand_double_range( rnd, -G_PI, G_PI ) / FPS,
+				"rvel", (gfloat)g_rand_double_range( rnd, -G_PI, G_PI ) / fps,
 				NULL );
 		case GTK_MOVING_FIGURE_TYPE_CIRCLE:
 			g_object_set( G_OBJECT( figure ),
@@ -297,8 +317,8 @@ g_figure_randomize(
 			g_object_set( G_OBJECT( figure ),
 				"x", (gfloat)rect->x + (gfloat)g_rand_double_range( rnd, 0.0, (gdouble)rect->width ),
 				"y", (gfloat)rect->y + (gfloat)g_rand_double_range( rnd, 0.0, (gdouble)rect->height ),
-				"velx", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / FPS,
-				"vely", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / FPS,
+				"velx", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / fps,
+				"vely", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / fps,
 				"color", &color,
 				NULL );
 			break;
@@ -315,11 +335,13 @@ g_figure_randomize(
 GtkMovingFiguresArea*
 gtk_moving_figures_area_new(
 	guint width,
-	guint height )
+	guint height,
+	gfloat fps )
 {
 	return GTK_MOVING_FIGURES_AREA( g_object_new( GTK_TYPE_MOVING_FIGURES_AREA,
 		"minimum-width", width,
 		"minimum-height", height,
+		"fps", fps,
 		NULL ) );
 }
 
@@ -336,7 +358,7 @@ gtk_moving_figures_area_reallocate(
 	rnd = g_rand_new();
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			g_figure_randomize( G_FIGURE( l->data ), rnd, fig_type, &( self->rect ) );
+			g_figure_randomize( G_FIGURE( l->data ), rnd, fig_type, &( self->rect ), self->fps );
 	g_rand_free( rnd );
 }
 
@@ -390,7 +412,7 @@ gtk_moving_figures_area_append(
 				figure = NULL;
 				break;
 		}
-		g_figure_randomize( figure, rnd, fig_type, &( self->rect ) );
+		g_figure_randomize( figure, rnd, fig_type, &( self->rect ), self->fps );
 		self->fig[fig_type] = g_list_prepend( self->fig[fig_type], figure );
 	}
 	self->fignum[fig_type] += num;

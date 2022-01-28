@@ -1,12 +1,13 @@
 #include <stdlib.h>
 #include <gtk/gtk.h>
-#include "fps.h"
 #include "gtkmovingfiguresarea.h"
 
 
 /*
 	definitions
 */
+#define FPS ( 30.0 )
+
 enum _ButtonState
 {
 	BUTTON_STATE_START,
@@ -92,7 +93,7 @@ moving_figures_area_new(
 {
 	GtkMovingFiguresArea *moving_figures_area;
 
-	moving_figures_area = gtk_moving_figures_area_new( 100, 100 );
+	moving_figures_area = gtk_moving_figures_area_new( 100, 100, FPS );
 	gtk_widget_set_vexpand( GTK_WIDGET( moving_figures_area ), TRUE );
 	gtk_widget_set_hexpand( GTK_WIDGET( moving_figures_area ), TRUE );
 
@@ -174,7 +175,7 @@ on_startstop_button_clicked(
 		case BUTTON_STATE_START:
 			gtk_button_set_label( startstop_button, "Stop" );
 			priv->button_state = BUTTON_STATE_STOP;
-			priv->timer = g_timeout_add( 1000 / FPS, timer_timeout_callback, user_data );
+			priv->timer = g_timeout_add( 1000 / (gint)FPS, timer_timeout_callback, user_data );
 			break;
 		case BUTTON_STATE_STOP:
 			gtk_button_set_label( startstop_button, "Start" );
