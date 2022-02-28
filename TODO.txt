@@ -1,0 +1,2 @@
+make GL_RENDERE_DATA_DEFAULT for using in g_figure_get_data
+include frame_buffer, viewport, texture, draw to GLRenderer
