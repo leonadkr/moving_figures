@@ -1,11 +1,7 @@
 #ifndef G_POINT_H
 #define G_POINT_H
 
-#include <gtk/gtk.h>
-#include <glib-object.h>
-
 #include "gfigure.h"
-
 
 G_BEGIN_DECLS
 
@@ -19,6 +15,7 @@ struct _GPointClass
 typedef struct _GPointClass GPointClass;
 
 GPoint* g_point_new( void );
+GLRendererLayout* g_point_class_get_layout( void );
 
 G_END_DECLS
 

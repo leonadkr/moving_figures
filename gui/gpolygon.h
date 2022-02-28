@@ -1,11 +1,7 @@
 #ifndef G_POLYGON_H
 #define G_POLYGON_H
 
-#include <gtk/gtk.h>
-#include <glib-object.h>
-
 #include "gcircle.h"
-
 
 G_BEGIN_DECLS
 
@@ -19,6 +15,7 @@ struct _GPolygonClass
 typedef struct _GPolygonClass GPolygonClass;
 
 GPolygon* g_polygon_new( void );
+GLRendererLayout* g_polygon_class_get_layout( void );
 
 G_END_DECLS
 

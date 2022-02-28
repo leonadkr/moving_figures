@@ -1,11 +1,7 @@
 #ifndef G_CIRCLE_H
 #define G_CIRCLE_H
 
-#include <gtk/gtk.h>
-#include <glib-object.h>
-
 #include "gpoint.h"
-
 
 G_BEGIN_DECLS
 
@@ -19,6 +15,7 @@ struct _GCircleClass
 typedef struct _GCircleClass GCircleClass;
 
 GCircle* g_circle_new( void );
+GLRendererLayout* g_circle_class_get_layout( void );
 
 G_END_DECLS
 

@@ -1,9 +1,6 @@
 #ifndef G_STAR_H
 #define G_STAR_H
 
-#include <gtk/gtk.h>
-#include <glib-object.h>
-
 #include "gpolygon.h"
 
 
@@ -19,6 +16,7 @@ struct _GStarClass
 typedef struct _GStarClass GStarClass;
 
 GStar* g_star_new( void );
+GLRendererLayout* g_star_class_get_layout( void );
 
 G_END_DECLS
 

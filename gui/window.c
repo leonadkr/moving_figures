@@ -2,7 +2,6 @@
 #include <gtk/gtk.h>
 #include "gtkmovingfiguresarea.h"
 
-
 /*
 	definitions
 */
@@ -17,7 +16,6 @@ enum _ButtonState
 };
 typedef enum _ButtonState ButtonState;
 
-
 /*
 	structures
 */
@@ -30,9 +28,8 @@ struct _WindowPrivate
 };
 typedef struct _WindowPrivate WindowPrivate;
 
-
 /*
-	function prototypes
+	private methods
 */
 static G_DEFINE_QUARK( window-private, window_private )
 static WindowPrivate* window_private_new( void );
@@ -53,7 +50,6 @@ static GtkButton* reallocate_button_new( GtkWindow *window );
 static void on_reallocate_button_clicked( GtkButton *reallocate_button, gpointer user_data );
 
 static gboolean on_key_pressed( GtkEventControllerKey *self, guint keyval, guint keycode, GdkModifierType state, gpointer user_data );
-
 
 /*
 	private
@@ -83,7 +79,6 @@ window_get_private(
 	return g_object_get_qdata( G_OBJECT( window ), window_private_quark() );
 }
 
-
 /*
 	moving figures area
 */
@@ -99,7 +94,6 @@ moving_figures_area_new(
 
 	return moving_figures_area;
 }
-
 
 /*
 	spins
@@ -143,7 +137,6 @@ on_spin_value_changed(
 	if( priv->button_state == BUTTON_STATE_START )
 		gtk_widget_queue_draw( GTK_WIDGET( priv->moving_figures_area ) );
 }
-
 
 /*
 	start-stop button
@@ -201,7 +194,6 @@ timer_timeout_callback(
 	return TRUE;
 }
 
-
 /*
 	reallocate button
 */
@@ -232,7 +224,6 @@ on_reallocate_button_clicked(
 		gtk_widget_queue_draw( GTK_WIDGET( priv->moving_figures_area ) );
 }
 
-
 /*
 	window
 */
@@ -254,7 +245,6 @@ on_key_pressed(
 
 	return GDK_EVENT_PROPAGATE;
 }
-
 
 /*
 	public

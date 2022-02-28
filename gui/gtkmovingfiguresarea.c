@@ -1,6 +1,10 @@
 #include <stdlib.h>
+#include <math.h>
 #include <gtk/gtk.h>
+#include <epoxy/gl.h>
 
+#include "gresource.h"
+#include "glrenderer.h"
 #include "gtkmovingfiguresarea.h"
 
 #include "gpoint.h"
@@ -8,6 +12,10 @@
 #include "gpolygon.h"
 #include "gstar.h"
 
+
+/*
+	structures
+*/
 
 struct _GtkMovingFiguresArea
 {
@@ -18,11 +26,20 @@ struct _GtkMovingFiguresArea
 
 	gboolean is_realized;
 	GList *fig[N_GTK_MOVING_FIGURE_TYPE];
-	gint fignum[N_GTK_MOVING_FIGURE_TYPE];
-	GdkRectangle rect;
+	guint fignum[N_GTK_MOVING_FIGURE_TYPE];
+	GLsizeiptr offset[N_GTK_MOVING_FIGURE_TYPE];
+	GLsizeiptr count[N_GTK_MOVING_FIGURE_TYPE];
+	GLRectangle rect;
+
+	GdkGLContext *gl_context;
+	GLRenderer *renderer;
+	GLuint frame_buffer;
 };
 typedef struct _GtkMovingFiguresArea GtkMovingFiguresArea;
 
+/*
+	properties
+*/
 enum _GtkMovingFiguresAreaPropertyID
 {
 	PROP_0, /* 0 is reserved for GObject */
@@ -35,16 +52,20 @@ enum _GtkMovingFiguresAreaPropertyID
 };
 typedef enum _GtkMovingFiguresAreaPropertyID GtkMovingFiguresAreaPropertyID;
 
+/*
+	static members
+*/
 static GParamSpec *object_props[N_PROPS] = { NULL, };
 
 /*
 	private methods
 */
-static void g_figure_randomize( GFigure *figure, GRand *rnd, GtkMovingFigureType fig_type, GdkRectangle *rect, gfloat fps );
 static void gtk_moving_figures_area_real_size_allocate( GtkWidget *widget, gint width, gint height, gint baseline );
 static GtkSizeRequestMode gtk_moving_figures_area_real_get_request_mode( GtkWidget *widget );
 static void gtk_moving_figures_area_real_measure( GtkWidget *widget, GtkOrientation orientation, gint for_size, gint *minimum, gint *natural, gint *minimum_baseline, gint *natural_baseline );
 static void gtk_moving_figures_area_real_shapshot( GtkWidget *widget, GtkSnapshot *snapshot );
+static void gtk_moving_figures_area_real_realize( GtkWidget *widget );
+static void gtk_moving_figures_area_real_unrealize( GtkWidget *widget );
 
 G_DEFINE_FINAL_TYPE( GtkMovingFiguresArea, gtk_moving_figures_area, GTK_TYPE_WIDGET )
 
@@ -72,28 +93,15 @@ gtk_moving_figures_area_init(
 		self->fignum[fig_type] = 0;
 	}
 
-	self->rect = (GdkRectangle){
-		.x = 0,
-		.y = 0,
-		.width = self->minimum_width,
-		.height = self->minimum_height };
-}
+	self->rect = (GLRectangle){
+		.x = 0.0f,
+		.y = 0.0f,
+		.width = (gfloat)self->minimum_width,
+		.height = (gfloat)self->minimum_height };
 
-static void
-gtk_moving_figures_area_dispose(
-	GObject *object )
-{
-	GtkMovingFiguresArea *self = GTK_MOVING_FIGURES_AREA( object );
-	guint fig_type;
-
-	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
-		if( self->fig[fig_type] != NULL )
-		{
-			g_list_free_full( self->fig[fig_type], (GDestroyNotify)g_object_unref );
-			self->fig[fig_type] = NULL;
-		}
-
-	G_OBJECT_CLASS( gtk_moving_figures_area_parent_class )->dispose( object );
+	self->gl_context = NULL;
+	self->renderer = NULL;
+	self->frame_buffer = 0;
 }
 
 static void
@@ -155,7 +163,6 @@ gtk_moving_figures_area_class_init(
 	GObjectClass *object_class = G_OBJECT_CLASS( klass );
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( klass );
 
-	object_class->dispose = gtk_moving_figures_area_dispose;
 	object_class->get_property = gtk_moving_figures_area_get_property;
 	object_class->set_property = gtk_moving_figures_area_set_property;
 	object_props[PROP_MINIMUM_WIDTH] = g_param_spec_uint(
@@ -188,8 +195,13 @@ gtk_moving_figures_area_class_init(
 	widget_class->get_request_mode = gtk_moving_figures_area_real_get_request_mode;
 	widget_class->measure = gtk_moving_figures_area_real_measure;
 	widget_class->snapshot = gtk_moving_figures_area_real_shapshot;
+	widget_class->realize = gtk_moving_figures_area_real_realize;
+	widget_class->unrealize = gtk_moving_figures_area_real_unrealize;
 }
 
+/*
+	private methods
+*/
 static void
 gtk_moving_figures_area_real_size_allocate(
 	GtkWidget *widget,
@@ -198,18 +210,36 @@ gtk_moving_figures_area_real_size_allocate(
 	gint baseline )
 {
 	GtkMovingFiguresArea *self;
+	GLfloat vertex_transform_matrix[16] = {
+		1.0f, 0.0f, 0.0f, -1.0f,
+		0.0f, 1.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f };
 
 	g_return_if_fail( GTK_IS_WIDGET( widget ) );
 
 	self = GTK_MOVING_FIGURES_AREA( widget );
-	self->rect.width = width;
-	self->rect.height = height;
+
+	gdk_gl_context_make_current( self->gl_context );
+
+	/* store new size */
+	self->rect.width = (gfloat)width;
+	self->rect.height = (gfloat)height;
+
+	/* update viewport */
+	glViewport( 0, 0, width, height );
+
+	/* update vertex transform matrix */
+	vertex_transform_matrix[0] = 2.0f / (GLfloat)width;
+	vertex_transform_matrix[5] = -2.0f / (GLfloat)height;
+	glUniformMatrix4fv( self->renderer->vtm_uniform, 1, GL_TRUE, vertex_transform_matrix );
 }
 
 static GtkSizeRequestMode
 gtk_moving_figures_area_real_get_request_mode(
 	GtkWidget *widget )
 {
+	/* using minimal sizes makes this unnecessary */
 	return GTK_SIZE_REQUEST_CONSTANT_SIZE;
 }
 
@@ -239,110 +269,206 @@ gtk_moving_figures_area_real_shapshot(
 	GtkWidget *widget,
 	GtkSnapshot *snapshot )
 {
-	GtkMovingFiguresArea *self;
-	cairo_t *cr;
-	int fig_type;
 	GList *l;
-	GdkRGBA color;
-	
+	guint fig_type, scale;
+	GLRendererData fig_data;
+	GLTexture *texture;
+	GdkGLTexture *gl_texture;
+	GtkMovingFiguresArea *self;
+	GLint frame_buffer_status;
+
 	g_return_if_fail( GTK_WIDGET( widget ) );
 
 	self = GTK_MOVING_FIGURES_AREA( widget );
 
-	/* make all figures placed in the initially allocated rectangle */
+	/* make all figures initially placed in the realized rectangle */
 	if( !self->is_realized )
 	{
 		self->is_realized = TRUE;
 		gtk_moving_figures_area_reallocate( self );
 	}
 
-	cr = gtk_snapshot_append_cairo(
-		snapshot,
-		&GRAPHENE_RECT_INIT(
-			self->rect.x,
-			self->rect.y,
-			self->rect.width,
-			self->rect.height ) );
+	gdk_gl_context_make_current( self->gl_context );
+	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
+
+	/* make new texture and attach to frame buffer */
+	scale = gtk_widget_get_scale_factor( widget );
+	texture = gl_texture_new( self->rect.width, self->rect.height, scale );
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0 );
+	frame_buffer_status = glCheckFramebufferStatus( GL_FRAMEBUFFER );
+	if( frame_buffer_status != GL_FRAMEBUFFER_COMPLETE )
+	{
+		g_warning( "Frame buffer completeness status failed\n" );
+		return;
+	}
 
 	/* make white canvas */
-	color = (GdkRGBA){
-		.red = 1.0,
-		.green = 1.0,
-		.blue = 1.0,
-		.alpha = 1.0 };
-	gdk_cairo_set_source_rgba( cr, &color );
-	gdk_cairo_rectangle( cr, &( self->rect ) );
-	cairo_fill( cr );
+	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
+	glClear( GL_COLOR_BUFFER_BIT );
 
 	/* draw all figures */
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( self->rect ) ) )
-				g_figure_draw( G_FIGURE( l->data ), cr );
+		{
+			fig_data = g_figure_get_data( G_FIGURE( l->data ) );
+			glUniform4fv( self->renderer->color_uniform, 1, fig_data.color );
+			glUniformMatrix4fv( self->renderer->srtm_uniform, 1, GL_TRUE, fig_data.srtm );
+			glDrawElements(
+				fig_data.mode,
+				fig_data.count,
+				GL_UNSIGNED_INT,
+				BOFFSET( self->offset[fig_type] + fig_data.offset ) );
+		}
 
-	cairo_destroy( cr );
+	/* set complete texture to the the stack for drawing */
+	gl_texture = GDK_GL_TEXTURE( gdk_gl_texture_new(
+		self->gl_context,
+		texture->id,
+		texture->width,
+		texture->height,
+		(GDestroyNotify)gl_texture_free,
+		texture ) );
+	gtk_snapshot_save( snapshot );
+	gtk_snapshot_translate( snapshot, &GRAPHENE_POINT_INIT( 0, self->rect.height ) );
+	gtk_snapshot_scale( snapshot, 1.0f, -1.0f );
+	gtk_snapshot_append_texture(
+		snapshot,
+		GDK_TEXTURE( gl_texture ),
+		&GRAPHENE_RECT_INIT( 0, 0, self->rect.width, self->rect.height ) );
+	gtk_snapshot_restore( snapshot );
+	g_object_unref( G_OBJECT( gl_texture ) );
 }
 
 static void
-g_figure_randomize(
-	GFigure *figure,
-	GRand *rnd,
-	GtkMovingFigureType fig_type,
-	GdkRectangle *rect,
-	gfloat fps )
+gtk_moving_figures_area_real_realize(
+	GtkWidget *widget )
 {
-	GdkRGBA color;
+	GtkMovingFiguresArea *self;
+	GtkNative *native;
+	GdkSurface *surface;
+	guint fig_type;
+	GLsizeiptr offset;
+	GBytes *vshader_source, *fshader_source;
+	GLRendererLayout *layouts[N_GTK_MOVING_FIGURE_TYPE], *layout;
+	GError *error = NULL;
 
-	g_return_if_fail( G_IS_FIGURE( figure ) );
+	GTK_WIDGET_CLASS( gtk_moving_figures_area_parent_class )->realize( widget );
 
-	switch( fig_type )
+	self = GTK_MOVING_FIGURES_AREA( widget );
+
+	/* get GL context */
+	native = gtk_widget_get_native( widget );
+	surface = gtk_native_get_surface( native );
+	self->gl_context = gdk_surface_create_gl_context( surface, &error );
+	if( error != NULL )
 	{
-		case GTK_MOVING_FIGURE_TYPE_STAR:
-			g_object_set( G_OBJECT( figure ),
-				"corner", g_rand_int_range( rnd, 5, 15 ),
-				NULL );
-			break;
-		case GTK_MOVING_FIGURE_TYPE_POLYGON:
-			g_object_set( G_OBJECT( figure ),
-				"corner", g_rand_int_range( rnd, 3, 15 ),
-				NULL );
-			break;
-		default:
-			break;
+		g_warning( "%s\n", error->message );
+		g_clear_error( &error );
+		g_clear_object( &( self->gl_context ) );
+		return;
 	}
 
-	switch( fig_type )
+	/* realize GL context */
+	gdk_gl_context_realize( self->gl_context, &error );
+	if( error != NULL )
 	{
-		case GTK_MOVING_FIGURE_TYPE_STAR:
-		case GTK_MOVING_FIGURE_TYPE_POLYGON:
-			g_object_set( G_OBJECT( figure ),
-				"rvel", (gfloat)g_rand_double_range( rnd, -G_PI, G_PI ) / fps,
-				NULL );
-		case GTK_MOVING_FIGURE_TYPE_CIRCLE:
-			g_object_set( G_OBJECT( figure ),
-				"radius", (gfloat)g_rand_double_range( rnd, 10.0, 20.0 ),
-				"filled", (gboolean)g_rand_int_range( rnd, 0, 2 ),
-				NULL );
-		case GTK_MOVING_FIGURE_TYPE_POINT:
-			color = (GdkRGBA){
-				.red = g_rand_double( rnd ),
-				.green = g_rand_double( rnd ),
-				.blue = g_rand_double( rnd ),
-				.alpha = 1.0 };
-			g_object_set( G_OBJECT( figure ),
-				"x", (gfloat)rect->x + (gfloat)g_rand_double_range( rnd, 0.0, (gdouble)rect->width ),
-				"y", (gfloat)rect->y + (gfloat)g_rand_double_range( rnd, 0.0, (gdouble)rect->height ),
-				"velx", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / fps,
-				"vely", (gfloat)g_rand_double_range( rnd, -200.0, 200.0 ) / fps,
-				"color", &color,
-				NULL );
-			break;
-		default:
-			g_return_if_fail( fig_type < N_GTK_MOVING_FIGURE_TYPE );
-			break;
+		g_warning( "%s\n", error->message );
+		g_clear_error( &error );
+		g_clear_object( &( self->gl_context ) );
+		return;
 	}
+	gdk_gl_context_make_current( self->gl_context );
+
+	/* get shaders' sources */
+  vshader_source = g_resource_lookup_data(
+		gresource_get_resource(),
+		"/gresource/shaders/vertex.glsl",
+		G_RESOURCE_LOOKUP_FLAGS_NONE,
+		&error );
+	if( error != NULL )
+	{
+		g_warning( "%s\n", error->message );
+		g_clear_error( &error );
+		return;
+	}
+
+  fshader_source = g_resource_lookup_data(
+		gresource_get_resource(),
+		"/gresource/shaders/fragment.glsl",
+		G_RESOURCE_LOOKUP_FLAGS_NONE,
+		&error );
+	if( error != NULL )
+	{
+		g_warning( "%s\n", error->message );
+		g_clear_error( &error );
+		g_bytes_unref( vshader_source );
+		return;
+	}
+
+	/* get layouts from GFigures' classes and combine them to the one layout */
+	layouts[GTK_MOVING_FIGURE_TYPE_POINT] = g_point_class_get_layout();
+	layouts[GTK_MOVING_FIGURE_TYPE_CIRCLE] = g_circle_class_get_layout();
+	layouts[GTK_MOVING_FIGURE_TYPE_POLYGON] = g_polygon_class_get_layout();
+	layouts[GTK_MOVING_FIGURE_TYPE_STAR] = g_star_class_get_layout();
+
+	offset = 0;
+	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
+	{
+		self->offset[fig_type] = offset;
+		self->count[fig_type] = layouts[fig_type]->index_num;
+		offset += layouts[fig_type]->index_size;
+	}
+
+	layout = gl_renderer_layout_new_merged( layouts, N_GTK_MOVING_FIGURE_TYPE );
+	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
+		gl_renderer_layout_free( layouts[fig_type] );
+
+	/* compile shaders, link to program, create vao, vbo, ibo; include all to GLRenderer */
+	self->renderer = gl_renderer_new(
+		g_bytes_get_data( vshader_source, NULL ),
+		g_bytes_get_data( fshader_source, NULL ),
+		layout,
+		&error );
+	g_bytes_unref( vshader_source );
+	g_bytes_unref( fshader_source );
+	gl_renderer_layout_free( layout );
+	if( error != NULL )
+	{
+		g_warning( "%s\n", error->message );
+		g_clear_error( &error );
+		return;
+	}
+
+	/* create frame buffer */
+	glGenFramebuffers( 1, &( self->frame_buffer ) );
+	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
 }
 
+static void
+gtk_moving_figures_area_real_unrealize(
+	GtkWidget *widget )
+{
+	GtkMovingFiguresArea *self;
+	guint fig_type;
+
+	g_return_if_fail( GTK_IS_WIDGET( widget ) );
+
+	self = GTK_MOVING_FIGURES_AREA( widget );
+
+	gdk_gl_context_make_current( self->gl_context );
+
+	/* free all resources related to GL */
+	gl_renderer_free( self->renderer );
+	glDeleteFramebuffers( 1, &( self->frame_buffer ) );
+	gdk_gl_context_clear_current();
+	g_clear_object( &( self->gl_context ) );
+
+	/* destroy all GFigure's objects */
+	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
+		g_list_free_full( self->fig[fig_type], (GDestroyNotify)g_object_unref );
+
+	GTK_WIDGET_CLASS( gtk_moving_figures_area_parent_class )->unrealize( widget );
+}
 
 /*
 	public
@@ -373,7 +499,7 @@ gtk_moving_figures_area_reallocate(
 	rnd = g_rand_new();
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			g_figure_randomize( G_FIGURE( l->data ), rnd, fig_type, &( self->rect ), self->fps );
+			g_figure_randomize( G_FIGURE( l->data ), rnd, &( self->rect ), self->fps );
 	g_rand_free( rnd );
 }
 
@@ -388,8 +514,7 @@ gtk_moving_figures_area_move(
 
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			if( g_figure_is_inside_rect( G_FIGURE( l->data ), &( self->rect ) ) )
-				g_figure_move( G_FIGURE( l->data ), &( self->rect ) );
+			g_figure_move( G_FIGURE( l->data ), &( self->rect ) );
 }
 
 void
@@ -427,7 +552,7 @@ gtk_moving_figures_area_append(
 				figure = NULL;
 				break;
 		}
-		g_figure_randomize( figure, rnd, fig_type, &( self->rect ), self->fps );
+		g_figure_randomize( figure, rnd, &( self->rect ), self->fps );
 		self->fig[fig_type] = g_list_prepend( self->fig[fig_type], figure );
 	}
 	self->fignum[fig_type] += num;
