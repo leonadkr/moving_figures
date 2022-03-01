@@ -156,6 +156,7 @@ gl_renderer_new(
 
 	renderer = g_new( GLRenderer, 1 );
 
+	/* program */
 	glUseProgram( program );
 	renderer->program = program;
 	renderer->position_index = glGetAttribLocation( program, "position" );
@@ -163,18 +164,25 @@ gl_renderer_new(
 	renderer->vtm_uniform = glGetUniformLocation( program, "vtm" );
 	renderer->srtm_uniform = glGetUniformLocation( program, "srtm" );
 
+	/* VBO */
 	glGenBuffers( 1, &( renderer->vbo ) );
 	glBindBuffer( GL_ARRAY_BUFFER, renderer->vbo );
 	glBufferData( GL_ARRAY_BUFFER, layout->vertex_size, layout->vertex, GL_STATIC_DRAW );
 
+	/* VAO */
 	glGenVertexArrays( 1, &( renderer->vao ) );
 	glBindVertexArray( renderer->vao );
 	glEnableVertexAttribArray( renderer->position_index );
 	glVertexAttribPointer( renderer->position_index, 2, GL_FLOAT, GL_FALSE, 0, NULL );
 
+	/* IBO */
 	glGenBuffers( 1, &( renderer->ibo ) );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, renderer->ibo );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, layout->index_size, layout->index, GL_STATIC_DRAW );
+
+	/* frame buffer */
+	glGenFramebuffers( 1, &( renderer->frame_buffer ) );
+	glBindFramebuffer( GL_FRAMEBUFFER, renderer->frame_buffer );
 
 	/* use primitive restart index as GL_RENDERER_PRIMITIVE_RESTART_INDEX */
 	glEnable( GL_PRIMITIVE_RESTART );
@@ -185,31 +193,36 @@ gl_renderer_new(
 	glCullFace( GL_FRONT );
 	glFrontFace( GL_CW );
 
-	/* do not use Depth test */
+	/* do not use depth test */
 	glDisable( GL_DEPTH_TEST );
+
+	/* enable MSAA */
+	glEnable( GL_MULTISAMPLE );
 
 	return renderer;
 }
 
 void
 gl_renderer_free(
-	GLRenderer *renderer )
+	GLRenderer *self )
 {
-	if( renderer == NULL )
+	if( self == NULL )
 		return;
 
-	glDeleteProgram( renderer->program );
-	glDeleteVertexArrays( 1, &( renderer->vao ) );
-	glDeleteBuffers( 1, &( renderer->vbo ) );
-	glDeleteBuffers( 1, &( renderer->ibo ) );
+	glDeleteProgram( self->program );
+	glDeleteVertexArrays( 1, &( self->vao ) );
+	glDeleteBuffers( 1, &( self->vbo ) );
+	glDeleteBuffers( 1, &( self->ibo ) );
+	glDeleteFramebuffers( 1, &( self->frame_buffer ) );
 
-	g_free( renderer );
+	g_free( self );
 }
 
 void
 gl_renderer_make_current(
 	GLRenderer *self )
 {
+	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
 	glBindVertexArray( self->vao );
 	glBindBuffer( GL_ARRAY_BUFFER, self->vbo );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, self->ibo );
@@ -234,15 +247,69 @@ gl_renderer_print_gl_info(
 }
 
 void
-gl_renderer_layout_free(
-	GLRendererLayout *layout )
+gl_renderer_viewport(
+	GLRenderer *self,
+	GLint x,
+	GLint y,
+	GLsizei width,
+	GLsizei height )
 {
-	if( layout == NULL )
+	GLfloat vtm[16] = {
+		1.0f, 0.0f, 0.0f, -1.0f,
+		0.0f, 1.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f };
+
+	g_return_if_fail( self != NULL );
+
+	/* update viewport */
+	glViewport( x, y, width, height );
+
+	/* update vertex transform matrix */
+	vtm[0] = 2.0f / (GLfloat)width;
+	vtm[5] = -2.0f / (GLfloat)height;
+	glUniformMatrix4fv( self->vtm_uniform, 1, GL_TRUE, vtm );
+}
+
+void
+gl_renderer_bind_texture(
+	GLRenderer *self,
+	GLRendererTexture *texture )
+{
+	g_return_if_fail( self != NULL );
+	g_return_if_fail( texture != NULL );
+
+	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0 );
+	if( glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
+		g_warning( "Frame buffer completeness status failed\n" );
+}
+
+void
+gl_renderer_draw(
+	GLRenderer *self,
+	GLRendererData *data,
+	GLsizeiptr offset )
+{
+	g_return_if_fail( self != NULL );
+	g_return_if_fail( data != NULL );
+
+	glUniform4fv( self->color_uniform, 1, data->color );
+	glUniformMatrix4fv( self->srtm_uniform, 1, GL_TRUE, data->srtm );
+
+	glDrawElements( data->mode, data->count, GL_UNSIGNED_INT, BOFFSET( data->offset + offset ) );
+}
+
+void
+gl_renderer_layout_free(
+	GLRendererLayout *self )
+{
+	if( self == NULL )
 		return;
 
-	g_free( layout->vertex );
-	g_free( layout->index );
-	g_free( layout );
+	g_free( self->vertex );
+	g_free( self->index );
+	g_free( self );
 }
 
 GLRendererLayout*
@@ -320,7 +387,7 @@ gl_renderer_layout_new_optimized(
 	vs = layout->vertex_size / layout->vertex_num;
 	vertex_num = 0;
 	vertex_size = 0;
-	for( i = 0; i < opt_layout->index_num; ++i )
+	for( i = 0; i < layout->index_num; ++i )
 	{
 		if( layout->index[i] == GL_RENDERER_PRIMITIVE_RESTART_INDEX )
 		{
@@ -334,6 +401,8 @@ gl_renderer_layout_new_optimized(
 		for( j = 0; j < vertex_num; ++j )
 		{
 			ov = POFFSET( opt_layout->vertex, vs * j );
+
+			/* just bitwise comparison */
 			if( memcmp( iv, ov, vs ) == 0 )
 			{
 				opt_layout->index[i] = j;
@@ -347,9 +416,9 @@ gl_renderer_layout_new_optimized(
 
 		ov = POFFSET( opt_layout->vertex, vertex_size );
 		memcpy( ov, iv, vs );
+		opt_layout->index[i] = vertex_num;
 		vertex_num++;
 		vertex_size += vs;
-		opt_layout->index[i] = i;
 	}
 	opt_layout->vertex_num = vertex_num;
 	opt_layout->vertex_size = vertex_size;
@@ -358,13 +427,13 @@ gl_renderer_layout_new_optimized(
 	return opt_layout;
 }
 
-GLTexture*
-gl_texture_new(
+GLRendererTexture*
+gl_renderer_texture_new(
 	GLuint width,
 	GLuint height,
 	GLuint scale )
 {
-	GLTexture *self = g_new( GLTexture, 1 );
+	GLRendererTexture *self = g_new( GLRendererTexture, 1 );
 
 	self->width = width * scale;
 	self->height = height * scale;
@@ -383,8 +452,8 @@ gl_texture_new(
 }
 
 void
-gl_texture_free(
-	GLTexture *self )
+gl_renderer_texture_free(
+	GLRendererTexture *self )
 {
 	if( self == NULL )
 		return;

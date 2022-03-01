@@ -211,19 +211,9 @@ g_figure_real_get_data(
 	GFigure *self )
 {
 	GFigurePrivate *priv;
-	GLRendererData data = (GLRendererData){
-	.mode = GL_POINTS,
-	.offset = 0,
-	.count = 0,
-	.color = {
-		0.0f, 0.0f, 0.0f, 1.0f },
-	.srtm = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f } };
+	GLRendererData data = GL_RENDERER_DATA_DEFAULT;
 
-	g_return_val_if_fail( G_IS_FIGURE( self ), data );
+	g_return_val_if_fail( G_IS_FIGURE( self ), GL_RENDERER_DATA_DEFAULT );
 
 	priv = g_figure_get_instance_private( self );
 
@@ -278,22 +268,11 @@ g_figure_get_data(
 	GFigure *self )
 {
 	GFigureClass *klass;
-	GLRendererData data = (GLRendererData){
-	.mode = GL_POINTS,
-	.offset = 0,
-	.count = 0,
-	.color = {
-		0.0f, 0.0f, 0.0f, 1.0f },
-	.srtm = {
-		1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f } };
 
-	g_return_val_if_fail( G_IS_FIGURE( self ), data );
+	g_return_val_if_fail( G_IS_FIGURE( self ), GL_RENDERER_DATA_DEFAULT );
 	klass = G_FIGURE_GET_CLASS( self );
 
-	g_return_val_if_fail( klass->get_data != NULL, data );
+	g_return_val_if_fail( klass->get_data != NULL, GL_RENDERER_DATA_DEFAULT );
 	return klass->get_data( self );
 }
 

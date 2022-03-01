@@ -209,19 +209,9 @@ g_polygon_real_get_data(
 	gfloat rsin, rcos;
 	gboolean filled;
 	gfloat radius;
-	GLRendererData data = (GLRendererData){
-		.mode = GL_POINTS,
-		.offset = 0,
-		.count = 0,
-		.color = {
-			0.0f, 0.0f, 0.0f, 1.0f },
-		.srtm = {
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f } };
+	GLRendererData data = GL_RENDERER_DATA_DEFAULT;
 
-	g_return_val_if_fail( G_IS_FIGURE( figure ), data );
+	g_return_val_if_fail( G_IS_FIGURE( figure ), GL_RENDERER_DATA_DEFAULT );
 
 	self = G_POLYGON( figure );
 	priv = g_polygon_get_instance_private( self );

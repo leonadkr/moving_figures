@@ -33,7 +33,6 @@ struct _GtkMovingFiguresArea
 
 	GdkGLContext *gl_context;
 	GLRenderer *renderer;
-	GLuint frame_buffer;
 };
 typedef struct _GtkMovingFiguresArea GtkMovingFiguresArea;
 
@@ -101,7 +100,6 @@ gtk_moving_figures_area_init(
 
 	self->gl_context = NULL;
 	self->renderer = NULL;
-	self->frame_buffer = 0;
 }
 
 static void
@@ -210,11 +208,6 @@ gtk_moving_figures_area_real_size_allocate(
 	gint baseline )
 {
 	GtkMovingFiguresArea *self;
-	GLfloat vertex_transform_matrix[16] = {
-		1.0f, 0.0f, 0.0f, -1.0f,
-		0.0f, 1.0f, 0.0f, 1.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f };
 
 	g_return_if_fail( GTK_IS_WIDGET( widget ) );
 
@@ -226,13 +219,8 @@ gtk_moving_figures_area_real_size_allocate(
 	self->rect.width = (gfloat)width;
 	self->rect.height = (gfloat)height;
 
-	/* update viewport */
-	glViewport( 0, 0, width, height );
-
-	/* update vertex transform matrix */
-	vertex_transform_matrix[0] = 2.0f / (GLfloat)width;
-	vertex_transform_matrix[5] = -2.0f / (GLfloat)height;
-	glUniformMatrix4fv( self->renderer->vtm_uniform, 1, GL_TRUE, vertex_transform_matrix );
+	/* update GL viewport */
+	gl_renderer_viewport( self->renderer, 0, 0, width, height );
 }
 
 static GtkSizeRequestMode
@@ -272,10 +260,9 @@ gtk_moving_figures_area_real_shapshot(
 	GList *l;
 	guint fig_type, scale;
 	GLRendererData fig_data;
-	GLTexture *texture;
+	GLRendererTexture *texture;
 	GdkGLTexture *gl_texture;
 	GtkMovingFiguresArea *self;
-	GLint frame_buffer_status;
 
 	g_return_if_fail( GTK_WIDGET( widget ) );
 
@@ -289,18 +276,11 @@ gtk_moving_figures_area_real_shapshot(
 	}
 
 	gdk_gl_context_make_current( self->gl_context );
-	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
 
 	/* make new texture and attach to frame buffer */
 	scale = gtk_widget_get_scale_factor( widget );
-	texture = gl_texture_new( self->rect.width, self->rect.height, scale );
-	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0 );
-	frame_buffer_status = glCheckFramebufferStatus( GL_FRAMEBUFFER );
-	if( frame_buffer_status != GL_FRAMEBUFFER_COMPLETE )
-	{
-		g_warning( "Frame buffer completeness status failed\n" );
-		return;
-	}
+	texture = gl_renderer_texture_new( self->rect.width, self->rect.height, scale );
+	gl_renderer_bind_texture( self->renderer, texture );
 
 	/* make white canvas */
 	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
@@ -311,13 +291,7 @@ gtk_moving_figures_area_real_shapshot(
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
 		{
 			fig_data = g_figure_get_data( G_FIGURE( l->data ) );
-			glUniform4fv( self->renderer->color_uniform, 1, fig_data.color );
-			glUniformMatrix4fv( self->renderer->srtm_uniform, 1, GL_TRUE, fig_data.srtm );
-			glDrawElements(
-				fig_data.mode,
-				fig_data.count,
-				GL_UNSIGNED_INT,
-				BOFFSET( self->offset[fig_type] + fig_data.offset ) );
+			gl_renderer_draw( self->renderer, &fig_data, self->offset[fig_type] );
 		}
 
 	/* set complete texture to the the stack for drawing */
@@ -326,7 +300,7 @@ gtk_moving_figures_area_real_shapshot(
 		texture->id,
 		texture->width,
 		texture->height,
-		(GDestroyNotify)gl_texture_free,
+		(GDestroyNotify)gl_renderer_texture_free,
 		texture ) );
 	gtk_snapshot_save( snapshot );
 	gtk_snapshot_translate( snapshot, &GRAPHENE_POINT_INIT( 0, self->rect.height ) );
@@ -349,7 +323,7 @@ gtk_moving_figures_area_real_realize(
 	guint fig_type;
 	GLsizeiptr offset;
 	GBytes *vshader_source, *fshader_source;
-	GLRendererLayout *layouts[N_GTK_MOVING_FIGURE_TYPE], *layout;
+	GLRendererLayout *layouts[N_GTK_MOVING_FIGURE_TYPE], *layout, *opt_layout;
 	GError *error = NULL;
 
 	GTK_WIDGET_CLASS( gtk_moving_figures_area_parent_class )->realize( widget );
@@ -406,6 +380,8 @@ gtk_moving_figures_area_real_realize(
 	}
 
 	/* get layouts from GFigures' classes and combine them to the one layout */
+	/* optimize this layout */
+	/* store offsets for all figures' classes */
 	layouts[GTK_MOVING_FIGURE_TYPE_POINT] = g_point_class_get_layout();
 	layouts[GTK_MOVING_FIGURE_TYPE_CIRCLE] = g_circle_class_get_layout();
 	layouts[GTK_MOVING_FIGURE_TYPE_POLYGON] = g_polygon_class_get_layout();
@@ -422,26 +398,24 @@ gtk_moving_figures_area_real_realize(
 	layout = gl_renderer_layout_new_merged( layouts, N_GTK_MOVING_FIGURE_TYPE );
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		gl_renderer_layout_free( layouts[fig_type] );
+	opt_layout = gl_renderer_layout_new_optimized( layout );
+	gl_renderer_layout_free( layout );
 
-	/* compile shaders, link to program, create vao, vbo, ibo; include all to GLRenderer */
+	/* create GLRenderer */
 	self->renderer = gl_renderer_new(
 		g_bytes_get_data( vshader_source, NULL ),
 		g_bytes_get_data( fshader_source, NULL ),
-		layout,
+		opt_layout,
 		&error );
 	g_bytes_unref( vshader_source );
 	g_bytes_unref( fshader_source );
-	gl_renderer_layout_free( layout );
+	gl_renderer_layout_free( opt_layout );
 	if( error != NULL )
 	{
 		g_warning( "%s\n", error->message );
 		g_clear_error( &error );
 		return;
 	}
-
-	/* create frame buffer */
-	glGenFramebuffers( 1, &( self->frame_buffer ) );
-	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
 }
 
 static void
@@ -459,7 +433,6 @@ gtk_moving_figures_area_real_unrealize(
 
 	/* free all resources related to GL */
 	gl_renderer_free( self->renderer );
-	glDeleteFramebuffers( 1, &( self->frame_buffer ) );
 	gdk_gl_context_clear_current();
 	g_clear_object( &( self->gl_context ) );
 

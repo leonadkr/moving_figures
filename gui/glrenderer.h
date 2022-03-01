@@ -4,9 +4,20 @@
 #include <glib-2.0/glib.h>
 #include <epoxy/gl.h>
 
-#define BOFFSET( offset ) ( (char*)NULL + ( offset ) )
 #define POFFSET( pointer, offset ) ( (char*)( pointer ) + ( offset ) )
+#define BOFFSET( offset ) POFFSET( NULL, offset )
 #define GL_RENDERER_PRIMITIVE_RESTART_INDEX ( (GLuint)-1 )
+#define GL_RENDERER_DATA_DEFAULT ( (GLRendererData){\
+	.mode = GL_POINTS,\
+	.offset = 0,\
+	.count = 0,\
+	.color = {\
+		0.0f, 0.0f, 0.0f, 1.0f },\
+	.srtm = {\
+		1.0f, 0.0f, 0.0f, 0.0f,\
+		0.0f, 1.0f, 0.0f, 0.0f,\
+		0.0f, 0.0f, 1.0f, 0.0f,\
+		0.0f, 0.0f, 0.0f, 1.0f } } )
 
 struct _GLRectangle
 {
@@ -27,6 +38,8 @@ struct _GLRenderer
 {
 	GLuint vao, vbo, ibo;
 	GLuint program;
+	GLuint frame_buffer;
+
 	GLuint position_index;
 	GLuint color_uniform;
 	GLuint vtm_uniform;
@@ -45,23 +58,26 @@ struct _GLRendererLayout
 };
 typedef struct _GLRendererLayout GLRendererLayout;
 
-struct _GLTexture
+struct _GLRendererTexture
 {
 	GLuint id;
 	GLuint width, height, scale;
 };
-typedef struct _GLTexture GLTexture;
+typedef struct _GLRendererTexture GLRendererTexture;
 
 GLRenderer* gl_renderer_new( const char *vshader_code, const char *fshader_code, GLRendererLayout *layout, GError **error );
 void gl_renderer_free( GLRenderer *renderer );
 void gl_renderer_make_current( GLRenderer *self );
 void gl_renderer_print_gl_info( void );
+void gl_renderer_viewport( GLRenderer *renderer, GLint x, GLint y, GLsizei width, GLsizei height );
+void gl_renderer_bind_texture( GLRenderer *renderer, GLRendererTexture *texture );
+void gl_renderer_draw( GLRenderer *renderer, GLRendererData *data, GLsizeiptr offset );
 
 void gl_renderer_layout_free( GLRendererLayout *layout );
 GLRendererLayout* gl_renderer_layout_new_merged( GLRendererLayout **layouts, GLsizeiptr layouts_count );
 GLRendererLayout* gl_renderer_layout_new_optimized( GLRendererLayout *layout );
 
-GLTexture* gl_texture_new( GLuint widht, GLuint height, GLuint scale );
-void gl_texture_free( GLTexture *self );
+GLRendererTexture* gl_renderer_texture_new( GLuint widht, GLuint height, GLuint scale );
+void gl_renderer_texture_free( GLRendererTexture *self );
 
 #endif
