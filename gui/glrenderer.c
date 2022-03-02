@@ -106,6 +106,30 @@ gl_renderer_create_program(
 	return program;
 }
 
+static gboolean
+gl_renderer_vertex_cmp(
+	char *iv,
+	char *ov,
+	GLsizeiptr vs )
+{
+	const GLfloat epsilon = 1.0e-6;
+	GLfloat *ix, *iy;
+	GLfloat *ox, *oy;
+
+	if( memcmp( iv, ov, vs ) == 0 )
+		return TRUE;
+
+	ix = (GLfloat*)iv;
+	iy = (GLfloat*)POFFSET( iv, sizeof( GLfloat ) );
+	ox = (GLfloat*)ov;
+	oy = (GLfloat*)POFFSET( ov, sizeof( GLfloat ) );
+
+	if( sqrtf( ( *ix - *ox ) * ( *ix - *ox ) + ( *iy - *oy ) * ( *iy - *oy ) ) < epsilon )
+		return TRUE;
+
+	return FALSE;
+}
+
 /*
 	public
 */
@@ -433,9 +457,7 @@ gl_renderer_layout_new_optimized(
 		for( j = 0; j < vertex_num; ++j )
 		{
 			ov = POFFSET( opt_layout->vertex, vs * j );
-
-			/* just bitwise comparison */
-			if( memcmp( iv, ov, vs ) == 0 )
+			if( gl_renderer_vertex_cmp( iv, ov, vs ) )
 			{
 				opt_layout->index[i] = j;
 				is_vertex_found = TRUE;
