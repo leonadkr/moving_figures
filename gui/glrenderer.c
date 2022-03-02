@@ -2,6 +2,8 @@
 #include <math.h>
 #include "glrenderer.h"
 
+#define GL_RENDERER_MSAA 4
+
 /*
 	errors
 */
@@ -180,9 +182,11 @@ gl_renderer_new(
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, renderer->ibo );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, layout->index_size, layout->index, GL_STATIC_DRAW );
 
-	/* frame buffer */
-	glGenFramebuffers( 1, &( renderer->frame_buffer ) );
-	glBindFramebuffer( GL_FRAMEBUFFER, renderer->frame_buffer );
+	/* frame buffers */
+	glGenFramebuffers( 1, &( renderer->msfbo ) );
+	glBindFramebuffer( GL_FRAMEBUFFER, renderer->msfbo );
+	glGenFramebuffers( 1, &( renderer->fbo ) );
+	glBindFramebuffer( GL_FRAMEBUFFER, renderer->fbo );
 
 	/* use primitive restart index as GL_RENDERER_PRIMITIVE_RESTART_INDEX */
 	glEnable( GL_PRIMITIVE_RESTART );
@@ -213,7 +217,8 @@ gl_renderer_free(
 	glDeleteVertexArrays( 1, &( self->vao ) );
 	glDeleteBuffers( 1, &( self->vbo ) );
 	glDeleteBuffers( 1, &( self->ibo ) );
-	glDeleteFramebuffers( 1, &( self->frame_buffer ) );
+	glDeleteFramebuffers( 1, &( self->fbo ) );
+	glDeleteFramebuffers( 1, &( self->msfbo ) );
 
 	g_free( self );
 }
@@ -222,7 +227,7 @@ void
 gl_renderer_make_current(
 	GLRenderer *self )
 {
-	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
+	glBindFramebuffer( GL_FRAMEBUFFER, self->fbo );
 	glBindVertexArray( self->vao );
 	glBindBuffer( GL_ARRAY_BUFFER, self->vbo );
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, self->ibo );
@@ -279,10 +284,37 @@ gl_renderer_bind_texture(
 	g_return_if_fail( self != NULL );
 	g_return_if_fail( texture != NULL );
 
-	glBindFramebuffer( GL_FRAMEBUFFER, self->frame_buffer );
-	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->id, 0 );
+	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, self->fbo );
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->tex, 0 );
 	if( glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
 		g_warning( "Frame buffer completeness status failed\n" );
+}
+
+void
+gl_renderer_bind_ms_texture(
+	GLRenderer *self,
+	GLRendererTexture *texture )
+{
+	g_return_if_fail( self != NULL );
+	g_return_if_fail( texture != NULL );
+
+	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, self->msfbo );
+	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, texture->mstex, 0 );
+	if( glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
+		g_warning( "Frame buffer completeness status failed\n" );
+}
+
+void
+gl_renderer_blit_texture(
+	GLRenderer *self,
+	GLRendererTexture *texture )
+{
+	g_return_if_fail( self != NULL );
+	g_return_if_fail( texture != NULL );
+
+	glBindFramebuffer( GL_READ_FRAMEBUFFER, self->msfbo );
+	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, self->fbo );
+	glBlitFramebuffer( 0, 0, texture->width, texture->height, 0, 0, texture->width, texture->height, GL_COLOR_BUFFER_BIT, GL_NEAREST );
 }
 
 void
@@ -439,8 +471,17 @@ gl_renderer_texture_new(
 	self->height = height * scale;
 	self->scale = scale;
 
-	glGenTextures( 1, &( self->id ) );
-	glBindTexture( GL_TEXTURE_2D, self->id );
+	glGenTextures( 1, &( self->mstex ) );
+	glBindTexture( GL_TEXTURE_2D_MULTISAMPLE, self->mstex );
+	glTexImage2DMultisample( GL_TEXTURE_2D_MULTISAMPLE, GL_RENDERER_MSAA, GL_RGBA8, self->width, self->height, GL_TRUE );
+
+	glTexParameteri( GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameteri( GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	glTexParameteri( GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+	glTexParameteri( GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
+
+	glGenTextures( 1, &( self->tex ) );
+	glBindTexture( GL_TEXTURE_2D, self->tex );
 	glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA8, self->width, self->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL );
 
 	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
@@ -458,7 +499,8 @@ gl_renderer_texture_free(
 	if( self == NULL )
 		return;
 
-	glDeleteTextures( 1, &( self->id ) );
+	glDeleteTextures( 1, &( self->mstex ) );
+	glDeleteTextures( 1, &( self->tex ) );
 	g_free( self );
 }
 

@@ -282,6 +282,9 @@ gtk_moving_figures_area_real_shapshot(
 	texture = gl_renderer_texture_new( self->rect.width, self->rect.height, scale );
 	gl_renderer_bind_texture( self->renderer, texture );
 
+	/* bind multi-sample texture */
+	gl_renderer_bind_ms_texture( self->renderer, texture );
+
 	/* make white canvas */
 	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
 	glClear( GL_COLOR_BUFFER_BIT );
@@ -294,10 +297,13 @@ gtk_moving_figures_area_real_shapshot(
 			gl_renderer_draw( self->renderer, &fig_data, self->offset[fig_type] );
 		}
 
+	/* copy from multu-sample texture to draw texture */
+	gl_renderer_blit_texture( self->renderer, texture );
+
 	/* set complete texture to the the stack for drawing */
 	gl_texture = GDK_GL_TEXTURE( gdk_gl_texture_new(
 		self->gl_context,
-		texture->id,
+		texture->tex,
 		texture->width,
 		texture->height,
 		(GDestroyNotify)gl_renderer_texture_free,

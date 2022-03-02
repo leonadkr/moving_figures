@@ -38,7 +38,7 @@ struct _GLRenderer
 {
 	GLuint vao, vbo, ibo;
 	GLuint program;
-	GLuint frame_buffer;
+	GLuint fbo, msfbo;
 
 	GLuint position_index;
 	GLuint color_uniform;
@@ -60,7 +60,7 @@ typedef struct _GLRendererLayout GLRendererLayout;
 
 struct _GLRendererTexture
 {
-	GLuint id;
+	GLuint tex, mstex;
 	GLuint width, height, scale;
 };
 typedef struct _GLRendererTexture GLRendererTexture;
@@ -71,6 +71,8 @@ void gl_renderer_make_current( GLRenderer *self );
 void gl_renderer_print_gl_info( void );
 void gl_renderer_viewport( GLRenderer *renderer, GLint x, GLint y, GLsizei width, GLsizei height );
 void gl_renderer_bind_texture( GLRenderer *renderer, GLRendererTexture *texture );
+void gl_renderer_bind_ms_texture( GLRenderer *renderer, GLRendererTexture *texture );
+void gl_renderer_blit_texture( GLRenderer *self, GLRendererTexture *texture );
 void gl_renderer_draw( GLRenderer *renderer, GLRendererData *data, GLsizeiptr offset );
 
 void gl_renderer_layout_free( GLRendererLayout *layout );
