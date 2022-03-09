@@ -29,7 +29,7 @@ struct _GtkMovingFiguresArea
 	guint fignum[N_GTK_MOVING_FIGURE_TYPE];
 	GLsizeiptr offset[N_GTK_MOVING_FIGURE_TYPE];
 	GLsizeiptr count[N_GTK_MOVING_FIGURE_TYPE];
-	GLRectangle rect;
+	GdkRectangle rect;
 
 	GdkGLContext *gl_context;
 	GLRenderer *renderer;
@@ -92,11 +92,11 @@ gtk_moving_figures_area_init(
 		self->fignum[fig_type] = 0;
 	}
 
-	self->rect = (GLRectangle){
-		.x = 0.0f,
-		.y = 0.0f,
-		.width = (gfloat)self->minimum_width,
-		.height = (gfloat)self->minimum_height };
+	self->rect = (GdkRectangle){
+		.x = 0,
+		.y = 0,
+		.width = self->minimum_width,
+		.height = self->minimum_height };
 
 	self->gl_context = NULL;
 	self->renderer = NULL;
@@ -216,8 +216,10 @@ gtk_moving_figures_area_real_size_allocate(
 	gdk_gl_context_make_current( self->gl_context );
 
 	/* store new size */
-	self->rect.width = (gfloat)width;
-	self->rect.height = (gfloat)height;
+	self->rect.x = 0;
+	self->rect.y = 0;
+	self->rect.width = width;
+	self->rect.height = height;
 
 	/* update GL viewport */
 	gl_renderer_viewport( self->renderer, 0, 0, width, height );
@@ -472,13 +474,19 @@ gtk_moving_figures_area_reallocate(
 	guint fig_type;
 	GList *l;
 	GRand *rnd;
+	GLRectangle rectf;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
+
+	rectf.x = (gfloat)self->rect.x;
+	rectf.y = (gfloat)self->rect.y;
+	rectf.width = (gfloat)self->rect.width;
+	rectf.height = (gfloat)self->rect.height;
 
 	rnd = g_rand_new();
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			g_figure_randomize( G_FIGURE( l->data ), rnd, &( self->rect ), self->fps );
+			g_figure_randomize( G_FIGURE( l->data ), rnd, &rectf, self->fps );
 	g_rand_free( rnd );
 }
 
@@ -488,12 +496,18 @@ gtk_moving_figures_area_move(
 {
 	guint fig_type;
 	GList *l;
+	GLRectangle rectf;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 
+	rectf.x = (gfloat)self->rect.x;
+	rectf.y = (gfloat)self->rect.y;
+	rectf.width = (gfloat)self->rect.width;
+	rectf.height = (gfloat)self->rect.height;
+
 	for( fig_type = 0; fig_type < N_GTK_MOVING_FIGURE_TYPE; ++fig_type )
 		for( l = self->fig[fig_type]; l != NULL; l = l->next )
-			g_figure_move( G_FIGURE( l->data ), &( self->rect ) );
+			g_figure_move( G_FIGURE( l->data ), &rectf );
 }
 
 void
@@ -505,9 +519,15 @@ gtk_moving_figures_area_append(
 	guint i;
 	GFigure *figure;
 	GRand *rnd;
+	GLRectangle rectf;
 
 	g_return_if_fail( GTK_IS_MOVING_FIGURES_AREA( self ) );
 	g_return_if_fail( num >= 0 );
+
+	rectf.x = (gfloat)self->rect.x;
+	rectf.y = (gfloat)self->rect.y;
+	rectf.width = (gfloat)self->rect.width;
+	rectf.height = (gfloat)self->rect.height;
 
 	rnd = g_rand_new();
 	for( i = 0; i < num; ++i )
@@ -531,7 +551,7 @@ gtk_moving_figures_area_append(
 				figure = NULL;
 				break;
 		}
-		g_figure_randomize( figure, rnd, &( self->rect ), self->fps );
+		g_figure_randomize( figure, rnd, &rectf, self->fps );
 		self->fig[fig_type] = g_list_prepend( self->fig[fig_type], figure );
 	}
 	self->fignum[fig_type] += num;
