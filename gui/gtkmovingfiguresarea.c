@@ -299,7 +299,7 @@ gtk_moving_figures_area_real_shapshot(
 			gl_renderer_draw( self->renderer, &fig_data, self->offset[fig_type] );
 		}
 
-	/* copy from multu-sample texture to draw texture */
+	/* copy from multi-sample texture to draw texture */
 	gl_renderer_blit_texture( self->renderer, texture );
 
 	/* set complete texture to the the stack for drawing */
