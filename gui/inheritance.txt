@@ -1,1 +1,1 @@
-GFigure -- GPoint -- GCircle -- GPolygon -- GStar
+GFigure -> GPoint -> GCircle -> GPolygon -> GStar
