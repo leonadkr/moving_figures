@@ -4,4 +4,4 @@ To build:
 cmake -S moving_figures -B /tmp/moving_figures/release -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_TOOLCHAIN_FILE=GlibToolChain.cmake
 
 To install:
-cmake --build /tmp/moving_figures/release --config Release --target install DESTDIR=$HOME/.local
+DESTDIR=$HOME/.local cmake --build /tmp/moving_figures/release --config Release --target install
