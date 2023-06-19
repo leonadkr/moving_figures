@@ -17,17 +17,11 @@ enum _GPointPropertyID
 };
 typedef enum _GPointPropertyID GPointPropertyID;
 
-/*
-	static members
-*/
 static GParamSpec *object_props[N_PROPS] = { NULL, };
 static GLenum g_point_class_mode[1];
 static GLsizeiptr g_point_class_offset[1];
 static GLsizeiptr g_point_class_count[1];
 
-/*
-	private methods
-*/
 static void g_point_real_randomize( GFigure *figure, GRand *rnd, GLRectangle *rect, gfloat fps );
 static GLRendererData g_point_real_get_data( GFigure *figure );
 
@@ -162,9 +156,6 @@ g_point_real_get_data(
 	return data;
 }
 
-/*
-	public
-*/
 GPoint*
 g_point_new(
 	void )

@@ -5,6 +5,7 @@ cmake_policy( SET CMP0115 NEW )
 project( moving_figures VERSION 1.0.0 LANGUAGES C )
 
 set( PROGRAM_NAME ${CMAKE_PROJECT_NAME} )
+set( PROGRAM_VERSION ${CMAKE_PROJECT_VERSION} )
 configure_file( config.h.in config.h )
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 

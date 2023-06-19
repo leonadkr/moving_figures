@@ -25,17 +25,11 @@ enum _GStarPropertyID
 };
 typedef enum _GStarPropertyID GStarPropertyID;
 
-/*
-	static members
-*/
 static GParamSpec *object_props[N_PROPS] = { NULL, };
 static guint g_star_class_mode[2];
 static guint g_star_class_offset[2][G_STAR_CORNER_NUM];
 static guint g_star_class_count[2][G_STAR_CORNER_NUM];
 
-/*
-	private methods
-*/
 static void g_star_real_randomize( GFigure *figure, GRand *rnd, GLRectangle *rect, gfloat fps );
 static GLRendererData g_star_real_get_data( GFigure *figure );
 static GLRendererLayout* g_star_class_create_layout_odd( gboolean filled, guint corner, gfloat angle );
@@ -273,9 +267,6 @@ g_star_class_create_layout(
 	return g_star_class_create_layout_odd( filled, corner, 0.0f );
 }
 
-/*
-	public
-*/
 GStar*
 g_star_new(
 	void )

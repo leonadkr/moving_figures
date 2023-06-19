@@ -4,9 +4,6 @@
 
 #define GL_RENDERER_MSAA 4
 
-/*
-	errors
-*/
 #define GL_RENDERER_ERROR ( gl_renderer_error_quark() )
 static G_DEFINE_QUARK( gl-renderer-error-quark, gl_renderer_error )
 
@@ -19,9 +16,6 @@ enum _GLRendererError
 };
 typedef enum _GLRendererError GLRendererError;
 
-/*
-	private
-*/
 static GLuint
 gl_renderer_create_shader(
 	GLenum shader_type,
@@ -130,9 +124,6 @@ gl_renderer_vertex_cmp(
 	return FALSE;
 }
 
-/*
-	public
-*/
 GLRenderer*
 gl_renderer_new(
 	const char *vshader_code,

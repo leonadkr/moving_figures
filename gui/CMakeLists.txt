@@ -17,6 +17,10 @@ add_library( figures
 	glrenderer.c
 	gtkmovingfiguresarea.c )
 
+set_target_properties( figures PROPERTIES
+	C_STANDARD 11
+	C_STANDARD_REQUIRED TRUE )
+
 target_include_directories( figures
 	PRIVATE
 	${GLIB2_INCLUDE_DIRS}
@@ -42,31 +46,29 @@ target_link_libraries( figures
 	${GTK4_LIBRARIES}
 	${EPOXY_LIBRARIES} )
 
-set_target_properties( figures PROPERTIES
+# gui
+add_library( ${PROJECT_NAME}
+	STATIC
+	window.c )
+
+set_target_properties( ${PROJECT_NAME} PROPERTIES
 	C_STANDARD 11
 	C_STANDARD_REQUIRED TRUE )
 
-# gui
-add_library( gui
-	STATIC
-	gui.c
-	window.c )
-
-target_include_directories( gui
+target_include_directories( ${PROJECT_NAME}
 	PRIVATE
+	${GLIB2_INCLUDE_DIRS}
 	${GTK4_INCLUDE_DIRS}
 	PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR} )
 
-target_link_directories( gui
+target_link_directories( ${PROJECT_NAME}
 	PRIVATE
+	${GLIB2_LIBRARY_DIRS}
 	${GTK4_LIBRARY_DIRS} )
 
-target_link_libraries( gui
+target_link_libraries( ${PROJECT_NAME}
 	PRIVATE
+	${GLIB2_LIBRARIES}
 	${GTK4_LIBRARIES}
 	figures )
-
-set_target_properties( gui PROPERTIES
-	C_STANDARD 11
-	C_STANDARD_REQUIRED TRUE )

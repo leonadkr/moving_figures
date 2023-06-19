@@ -22,14 +22,8 @@ enum _GFigurePropertyID
 };
 typedef enum _GFigurePropertyID GFigurePropertyID;
 
-/*
-	static members
-*/
 static GParamSpec *object_props[N_PROPS] = { NULL, };
 
-/*
-	private methods
-*/
 static void g_figure_real_move( GFigure *self, GLRectangle *rect );
 static void g_figure_real_randomize( GFigure *self, GRand *rnd, GLRectangle *rect, gfloat fps );
 static GLRendererData g_figure_real_get_data( GFigure *self );
@@ -223,9 +217,6 @@ g_figure_real_get_data(
 	return data;
 }
 
-/*
-	public
-*/
 GFigure*
 g_figure_new(
 	void )

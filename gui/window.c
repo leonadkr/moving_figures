@@ -1,10 +1,8 @@
 #include <stdlib.h>
+#include <glib.h>
 #include <gtk/gtk.h>
 #include "gtkmovingfiguresarea.h"
 
-/*
-	definitions
-*/
 #define FPS ( 30.0f )
 
 enum _ButtonState
@@ -16,9 +14,6 @@ enum _ButtonState
 };
 typedef enum _ButtonState ButtonState;
 
-/*
-	structures
-*/
 struct _WindowPrivate
 {
 	GtkMovingFiguresArea *moving_figures_area;
@@ -28,9 +23,6 @@ struct _WindowPrivate
 };
 typedef struct _WindowPrivate WindowPrivate;
 
-/*
-	private methods
-*/
 static G_DEFINE_QUARK( window-private, window_private )
 static WindowPrivate* window_private_new( void );
 static void window_private_free( WindowPrivate *priv );
@@ -51,9 +43,6 @@ static void on_reallocate_button_clicked( GtkButton *reallocate_button, gpointer
 
 static gboolean on_key_pressed( GtkEventControllerKey *self, guint keyval, guint keycode, GdkModifierType state, gpointer user_data );
 
-/*
-	private
-*/
 static WindowPrivate*
 window_private_new(
 	void )
@@ -246,11 +235,8 @@ on_key_pressed(
 	return GDK_EVENT_PROPAGATE;
 }
 
-/*
-	public
-*/
 GtkWindow*
-window_new(
+mf_window_new(
 	GtkApplication *app )
 {
 	GtkWindow *window;

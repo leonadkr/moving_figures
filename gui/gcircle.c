@@ -21,17 +21,11 @@ enum _GCirclePropertyID
 };
 typedef enum _GCirclePropertyID GCirclePropertyID;
 
-/*
-	static members
-*/
 static GParamSpec *object_props[N_PROPS] = { NULL, };
 static guint g_circle_class_mode[2];
 static guint g_circle_class_offset[2];
 static guint g_circle_class_count[2];
 
-/*
-	private methods
-*/
 static void g_circle_real_randomize( GFigure *figure, GRand *rnd, GLRectangle *rect, gfloat fps );
 static GLRendererData g_circle_real_get_data( GFigure *figure );
 static GLRendererLayout* g_circle_class_create_layout( gboolean filled );
@@ -220,9 +214,6 @@ g_circle_class_create_layout(
 	return layout;
 }
 
-/*
-	public
-*/
 GCircle*
 g_circle_new(
 	void )

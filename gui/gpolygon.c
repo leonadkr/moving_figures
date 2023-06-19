@@ -29,9 +29,6 @@ enum _GPolygonPropertyID
 };
 typedef enum _GPolygonPropertyID GPolygonPropertyID;
 
-/*
-	static members
-*/
 static GParamSpec *object_props[N_PROPS] = { NULL, };
 static guint g_polygon_class_mode[2];
 static guint g_polygon_class_offset[2][G_POLYGON_CORNER_NUM];
@@ -283,9 +280,6 @@ g_polygon_class_create_layout(
 	return layout;
 }
 
-/*
-	public
-*/
 GPolygon*
 g_polygon_new(
 	void )

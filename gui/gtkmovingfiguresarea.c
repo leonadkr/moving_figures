@@ -13,10 +13,6 @@
 #include "gstar.h"
 
 
-/*
-	structures
-*/
-
 struct _GtkMovingFiguresArea
 {
 	GtkWidget parent_instance;
@@ -36,9 +32,6 @@ struct _GtkMovingFiguresArea
 };
 typedef struct _GtkMovingFiguresArea GtkMovingFiguresArea;
 
-/*
-	properties
-*/
 enum _GtkMovingFiguresAreaPropertyID
 {
 	PROP_0, /* 0 is reserved for GObject */
@@ -51,14 +44,8 @@ enum _GtkMovingFiguresAreaPropertyID
 };
 typedef enum _GtkMovingFiguresAreaPropertyID GtkMovingFiguresAreaPropertyID;
 
-/*
-	static members
-*/
 static GParamSpec *object_props[N_PROPS] = { NULL, };
 
-/*
-	private methods
-*/
 static void gtk_moving_figures_area_real_size_allocate( GtkWidget *widget, gint width, gint height, gint baseline );
 static GtkSizeRequestMode gtk_moving_figures_area_real_get_request_mode( GtkWidget *widget );
 static void gtk_moving_figures_area_real_measure( GtkWidget *widget, GtkOrientation orientation, gint for_size, gint *minimum, gint *natural, gint *minimum_baseline, gint *natural_baseline );
@@ -197,9 +184,6 @@ gtk_moving_figures_area_class_init(
 	widget_class->unrealize = gtk_moving_figures_area_real_unrealize;
 }
 
-/*
-	private methods
-*/
 static void
 gtk_moving_figures_area_real_size_allocate(
 	GtkWidget *widget,

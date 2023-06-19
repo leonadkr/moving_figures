@@ -3,7 +3,7 @@
 
 #include <gtk/gtk.h>
 
-GtkWindow* window_new( GtkApplication *app );
+GtkWindow* mf_window_new( GtkApplication *app );
 
 #endif
 

@@ -5,7 +5,6 @@ pkg_check_modules( GLIB2 REQUIRED glib-2.0 )
 
 find_program( GLIB_COMPILE_RESOURCES NAMES glib-compile-resources REQUIRED )
 
-#configure_file( gresource.xml.in ${CMAKE_CURRENT_BINARY_DIR}/gresource.xml )
 configure_file( gresource.xml.in gresource.xml )
 
 execute_process(
