@@ -43,7 +43,7 @@ gl_renderer_create_shader(
 			error,
 			GL_RENDERER_ERROR,
 			GL_RENDERER_ERROR_SHADER_COMPILATION,
-			"Shader compilation error: %s\n",
+			"Shader compilation error: %s",
 			shader_info );
 
 		g_free( shader_info );
@@ -81,7 +81,7 @@ gl_renderer_create_program(
 			error,
 			GL_RENDERER_ERROR,
 			GL_RENDERER_ERROR_PROGRAM_LINKING,
-			"Program linking fails: %s\n",
+			"Program linking fails: %s",
 			program_info );
 
 		glDetachShader( program, vshader );
