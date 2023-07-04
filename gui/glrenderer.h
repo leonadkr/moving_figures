@@ -6,6 +6,7 @@
 
 #define POFFSET( pointer, offset ) ( (char*)( pointer ) + ( offset ) )
 #define BOFFSET( offset ) POFFSET( NULL, offset )
+#define GL_RENDERER_MSAA 4
 #define GL_RENDERER_PRIMITIVE_RESTART_INDEX ( (GLuint)-1 )
 #define GL_RENDERER_DATA_DEFAULT ( (GLRendererData){\
 	.mode = GL_POINTS,\
@@ -18,6 +19,16 @@
 		0.0f, 1.0f, 0.0f, 0.0f,\
 		0.0f, 0.0f, 1.0f, 0.0f,\
 		0.0f, 0.0f, 0.0f, 1.0f } } )
+
+enum _GLRendererError
+{
+	GL_RENDERER_ERROR_SHADER_COMPILATION,
+	GL_RENDERER_ERROR_PROGRAM_LINKING,
+	GL_RENDERER_ERROR_FRAME_BUFFER_COMPLETENESS_STATUS_FAILED,
+
+	N_GL_RENDERER_ERROR
+};
+typedef enum _GLRendererError GLRendererError;
 
 struct _GLRectangle
 {

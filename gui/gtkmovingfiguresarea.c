@@ -12,7 +12,6 @@
 #include "gpolygon.h"
 #include "gstar.h"
 
-
 struct _GtkMovingFiguresArea
 {
 	GtkWidget parent_instance;

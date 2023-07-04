@@ -2,20 +2,8 @@
 #include <math.h>
 #include "glrenderer.h"
 
-#define GL_RENDERER_MSAA 4
-
 #define GL_RENDERER_ERROR ( gl_renderer_error_quark() )
 static G_DEFINE_QUARK( gl-renderer-error-quark, gl_renderer_error )
-
-enum _GLRendererError
-{
-	GL_RENDERER_ERROR_SHADER_COMPILATION,
-	GL_RENDERER_ERROR_PROGRAM_LINKING,
-	GL_RENDERER_ERROR_FRAME_BUFFER_COMPLETENESS_STATUS_FAILED,
-
-	N_GL_RENDERER_ERROR
-};
-typedef enum _GLRendererError GLRendererError;
 
 static GLuint
 gl_renderer_create_shader(
