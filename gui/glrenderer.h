@@ -70,8 +70,8 @@ void gl_renderer_free( GLRenderer *renderer );
 void gl_renderer_make_current( GLRenderer *self );
 void gl_renderer_print_gl_info( void );
 void gl_renderer_viewport( GLRenderer *renderer, GLint x, GLint y, GLsizei width, GLsizei height );
-void gl_renderer_bind_texture( GLRenderer *renderer, GLRendererTexture *texture );
-void gl_renderer_bind_ms_texture( GLRenderer *renderer, GLRendererTexture *texture );
+void gl_renderer_bind_texture( GLRenderer *renderer, GLRendererTexture *texture, GError **error );
+void gl_renderer_bind_ms_texture( GLRenderer *renderer, GLRendererTexture *texture, GError **error );
 void gl_renderer_blit_texture( GLRenderer *self, GLRendererTexture *texture );
 void gl_renderer_draw( GLRenderer *renderer, GLRendererData *data, GLsizeiptr offset );
 

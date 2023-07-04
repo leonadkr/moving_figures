@@ -11,6 +11,7 @@ enum _GLRendererError
 {
 	GL_RENDERER_ERROR_SHADER_COMPILATION,
 	GL_RENDERER_ERROR_PROGRAM_LINKING,
+	GL_RENDERER_ERROR_FRAME_BUFFER_COMPLETENESS_STATUS_FAILED,
 
 	N_GL_RENDERER_ERROR
 };
@@ -294,7 +295,8 @@ gl_renderer_viewport(
 void
 gl_renderer_bind_texture(
 	GLRenderer *self,
-	GLRendererTexture *texture )
+	GLRendererTexture *texture,
+	GError **error )
 {
 	g_return_if_fail( self != NULL );
 	g_return_if_fail( texture != NULL );
@@ -302,13 +304,18 @@ gl_renderer_bind_texture(
 	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, self->fbo );
 	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture->tex, 0 );
 	if( glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
-		g_warning( "Frame buffer completeness status failed\n" );
+		g_set_error(
+			error,
+			GL_RENDERER_ERROR,
+			GL_RENDERER_ERROR_FRAME_BUFFER_COMPLETENESS_STATUS_FAILED,
+			"Frame buffer completeness status failed" );
 }
 
 void
 gl_renderer_bind_ms_texture(
 	GLRenderer *self,
-	GLRendererTexture *texture )
+	GLRendererTexture *texture,
+	GError **error )
 {
 	g_return_if_fail( self != NULL );
 	g_return_if_fail( texture != NULL );
@@ -316,7 +323,11 @@ gl_renderer_bind_ms_texture(
 	glBindFramebuffer( GL_DRAW_FRAMEBUFFER, self->msfbo );
 	glFramebufferTexture2D( GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, texture->mstex, 0 );
 	if( glCheckFramebufferStatus( GL_FRAMEBUFFER ) != GL_FRAMEBUFFER_COMPLETE )
-		g_warning( "Frame buffer completeness status failed\n" );
+		g_set_error(
+			error,
+			GL_RENDERER_ERROR,
+			GL_RENDERER_ERROR_FRAME_BUFFER_COMPLETENESS_STATUS_FAILED,
+			"Frame buffer completeness status failed" );
 }
 
 void

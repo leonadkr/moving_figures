@@ -249,6 +249,7 @@ gtk_moving_figures_area_real_shapshot(
 	GLRendererTexture *texture;
 	GdkGLTexture *gl_texture;
 	GtkMovingFiguresArea *self;
+	GError *error = NULL;
 
 	g_return_if_fail( GTK_WIDGET( widget ) );
 
@@ -266,10 +267,24 @@ gtk_moving_figures_area_real_shapshot(
 	/* make new texture and attach to frame buffer */
 	scale = gtk_widget_get_scale_factor( widget );
 	texture = gl_renderer_texture_new( self->rect.width, self->rect.height, scale );
-	gl_renderer_bind_texture( self->renderer, texture );
+	gl_renderer_bind_texture( self->renderer, texture, &error );
+	if( error != NULL )
+	{
+		gl_renderer_texture_free( texture );
+		g_log_structured( G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, "MESSAGE", error->message, NULL );
+		g_clear_error( &error );
+		return;
+	}
 
 	/* bind multi-sample texture */
-	gl_renderer_bind_ms_texture( self->renderer, texture );
+	gl_renderer_bind_ms_texture( self->renderer, texture, &error );
+	if( error != NULL )
+	{
+		gl_renderer_texture_free( texture );
+		g_log_structured( G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, "MESSAGE", error->message, NULL );
+		g_clear_error( &error );
+		return;
+	}
 
 	/* make white canvas */
 	glClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
@@ -328,7 +343,7 @@ gtk_moving_figures_area_real_realize(
 	self->gl_context = gdk_surface_create_gl_context( surface, &error );
 	if( error != NULL )
 	{
-		g_warning( "%s\n", error->message );
+		g_log_structured( G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, "MESSAGE", error->message, NULL );
 		g_clear_error( &error );
 		g_clear_object( &( self->gl_context ) );
 		return;
@@ -338,7 +353,7 @@ gtk_moving_figures_area_real_realize(
 	gdk_gl_context_realize( self->gl_context, &error );
 	if( error != NULL )
 	{
-		g_warning( "%s\n", error->message );
+		g_log_structured( G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, "MESSAGE", error->message, NULL );
 		g_clear_error( &error );
 		g_clear_object( &( self->gl_context ) );
 		return;
@@ -353,7 +368,7 @@ gtk_moving_figures_area_real_realize(
 		&error );
 	if( error != NULL )
 	{
-		g_warning( "%s\n", error->message );
+		g_log_structured( G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, "MESSAGE", error->message, NULL );
 		g_clear_error( &error );
 		return;
 	}
@@ -365,7 +380,7 @@ gtk_moving_figures_area_real_realize(
 		&error );
 	if( error != NULL )
 	{
-		g_warning( "%s\n", error->message );
+		g_log_structured( G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, "MESSAGE", error->message, NULL );
 		g_clear_error( &error );
 		g_bytes_unref( vshader_source );
 		return;
@@ -404,7 +419,7 @@ gtk_moving_figures_area_real_realize(
 	gl_renderer_layout_free( opt_layout );
 	if( error != NULL )
 	{
-		g_warning( "%s\n", error->message );
+		g_log_structured( G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, "MESSAGE", error->message, NULL );
 		g_clear_error( &error );
 		return;
 	}
