@@ -1,0 +1,15 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#define PROGRAM_NAME "@PROGRAM_NAME@"
+#define PROGRAM_VERSION "@PROGRAM_VERSION@"
+#define PROGRAM_APP_ID "@PROGRAM_APP_ID@"
+
+#define PROGRAM_WINDOW_WIDTH @PROGRAM_WINDOW_WIDTH@
+#define PROGRAM_WINDOW_HEIGHT @PROGRAM_WINDOW_HEIGHT@
+
+#define PROGRAM_APPLICATION_DESCRIPTION PROGRAM_NAME" version "PROGRAM_VERSION
+#define PROGRAM_APPLICATION_SUMMARY "An example program of using OpenGL with Gtk4. You can see different moving figures, add and delete figures, stop and start moving."
+
+#endif
+
