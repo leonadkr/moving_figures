@@ -445,7 +445,7 @@ mf_window_init(
 	gtk_window_set_title( GTK_WINDOW( self ), PROGRAM_NAME );
 	gtk_window_set_resizable( GTK_WINDOW( self ), TRUE );
 	gtk_window_set_decorated( GTK_WINDOW( self ), TRUE );
-	gtk_window_set_default_size( GTK_WINDOW( self ), PROGRAM_WINDOW_WIDTH, PROGRAM_WINDOW_HEIGHT );
+	gtk_window_set_default_size( GTK_WINDOW( self ), MAIN_WINDOW_DEFAULT_WIDTH, MAIN_WINDOW_DEFAULT_HEIGHT );
 
 	/* add event controller */
 	event_key = GTK_EVENT_CONTROLLER_KEY( gtk_event_controller_key_new() );

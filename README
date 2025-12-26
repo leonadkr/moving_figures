@@ -1,7 +1,8 @@
 An example program of using OpenGL with Gtk4. You can see different moving figures, add and delete figures, stop and start moving.
 
 To build:
-cmake -S moving_figures -B /tmp/moving_figures/release -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_TOOLCHAIN_FILE=GlibToolChain.cmake
+cmake -S moving_figures -B moving_figures/build -DMAIN_WINDOW_DEFAULT_WIDTH=1000 -DMAIN_WINDOW_DEFAULT_HEIGHT=900 --preset release
+cmake --build moving_figures/build
 
 To install:
-DESTDIR=$HOME/.local cmake --build /tmp/moving_figures/release --config Release --target install
+cmake --install moving_figures/build --prefix moving_figures/install
